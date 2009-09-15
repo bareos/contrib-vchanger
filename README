@@ -1,0 +1,6 @@
+vchanger is designed to implement a disk-based virtual autochanger device for
+use with Bacula(TM), an open-source network backup solution.
+
+Please see the vchangerHowto.html in the doc directory for further documentation
+and installation instructions.
+

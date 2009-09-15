@@ -1,0 +1,52 @@
+
+This file explains general installation instructions. The documentation
+included in the ./doc directory of the vchanger source archive should be
+consulted instead.
+
+
+--------------------------------------------------------------------------
+Using GNU autoconfig
+--------------------------------------------------------------------------
+  1.    Run ./configure to generate config.h and the various Makefiles.
+        ./configure --help   gives a list of possible options. Usually,
+        the default options will suffice to install vchanger under the
+        /usr/local directory.
+
+        Some systems require unusual options for compilation or linking that
+        the `configure' script does not know about.  You can give `configure'
+        initial values for variables by setting them in the environment.  Using
+        a Bourne-compatible shell, you can do that on the command line like
+        this:
+                CC=c89 CFLAGS=-O2 LIBS=-lposix ./configure
+        Or on systems that have the `env' program, you can do it like this:
+                env CPPFLAGS=-I/usr/local/include LDFLAGS=-s ./configure
+        Or if you're using a non Bourne-compatible shell, you can do:
+                sh -c 'CFLAGS="-O2 -g" ./configure
+
+        A typical vchanger development configuration for Linux is:
+
+        CFLAGS="-g -O2 -Wall" \
+          ./configure
+
+  2.    Carefully review the output from ./configure.  If it is not
+        what you want, re-run the ./configure.  Often ./configure "caches"
+        things and thus remembers the last ./configure options.  If you
+        want to be sure you are starting fresh after a ./configure,
+        do a:
+
+            make distclean
+
+        before re-running ./configure.  "make distclean" wipes out any
+        knowledge of the ./configure, so don't do it after you have a
+        configuration that suits your needs, otherwise the "make" will
+        not work.
+
+  3.    Build it
+            make
+
+  4.    Install it
+            make install-strip
+
+  5.    Create a autochanger configuration file and configure Bacula(TM)
+        to use that autochanger. Please see the documentation in the
+        ./doc directory for details.

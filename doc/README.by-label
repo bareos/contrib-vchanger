@@ -1,0 +1,32 @@
+README.by-label
+
+Many Linux distros include udev to provide dynamic device nodes supporting
+hotpluging of devices. By default, udev creates a symlink in /dev/disk/by-label
+for each attached disk partition that has a labeled file system, using the
+file system label to name the symlink. The symlink points to the real device
+node assigned by udev to the disk partition.
+
+When two partitions share the same file system label, the by-label symlink will
+point to the device node of the most recently attached partition, and there will
+be no symlink pointing to previously attached partitions. This presents a bit of
+a problem for using vchanger in multi-magazine mode, since all magazines
+belonging to a particular autochanger will have the same file system label.
+
+The 99-by-label-fix.rules and by-label-fix.sh files in the ./doc directory may be
+used to fix this "problem" by adding udev rules to create a numbered symlink for
+each partition's device node in addition to the default symlink based solely on
+the file system label. For example, if two separate disk partitions have file
+systems with the file system volume label "volname", then for the first partition
+attached, udev will create symlink /dev/disk/by-label/volname.1 in addition to the
+default symlink named /dev/disk/by-label/volname. When the second partition is
+attached, udev will create symlink /dev/disk/by-label/volname.2 and overwrite the
+default symlink.
+
+
+Installing the by-label Fix
+
+To install the new udev rules, copy the 99-by-label-fix.rules file to the udev
+rules directory, usually located at /etc/udev/rules.d, copy the by-label-fix.sh
+script to /usr/local/sbin, and then issue the command:
+  []# /sbin/udevadm control --reload_rules
+as root to load the new rules.

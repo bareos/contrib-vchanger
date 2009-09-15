@@ -1,0 +1,15 @@
+vchanger ChangeLog
+
+0.8.2  [2009-04-14]
+  - Corrections to documentation
+0.8.1  [2009-01-27]
+  - Add extended command INITMAG for initializing new magazines
+  - Added command line flags to set uid and gid when run as root
+  - Force LOADED command to return zero when no slot is loaded
+  - Changed 99-by-label-fix.rules to work with centos5/el5
+  - Added stateN files to track the loaded state of each virtual
+    drive when last invoked
+  - Removed debug line inadvertently left in by_label_fix.sh
+  
+0.8.0  [2008-10-03]
+  - Initial Release

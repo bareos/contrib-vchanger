@@ -1,0 +1,26 @@
+ Release notes for vchanger 0.8.2
+
+ Release 0.8.2
+ 
+ This release fixes some documentation errors. No changes were
+ made to the vchanger source.
+ 
+ Change Summary:
+ 2009-04-14
+  - Fixed ambiguities in the Howto kindly pointed out by Sean Brannon.
+ 2009-01-27
+  - Added command line flags to set uid and gid when run as root
+  - Force LOADED command to return zero when no slot is loaded
+  - Changed 99-by-label-fix.rules to work with centos5/el5
+  - Added stateN files to track the loaded state of each virtual
+    drive when last invoked
+  - Removed debug line inadvertently left in by_label_fix.sh
+ 
+ 2008-10-03
+ - This initial release has been running on a test server with
+   Bacula 2.4.2 on Linux for over a week, so is considered beta.
+ 
+ Bugs Fixed:
+ 
+ =================================================================
+ 

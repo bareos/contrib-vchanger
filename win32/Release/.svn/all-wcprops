@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 48
+/svnroot/vchanger/!svn/ver/7/trunk/win32/Release
+END
+objects.mk
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svnroot/vchanger/!svn/ver/3/trunk/win32/Release/objects.mk
+END
+sources.mk
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svnroot/vchanger/!svn/ver/3/trunk/win32/Release/sources.mk
+END
+makefile
+K 25
+svn:wc:ra_dav:version-url
+V 57
+/svnroot/vchanger/!svn/ver/7/trunk/win32/Release/makefile
+END
