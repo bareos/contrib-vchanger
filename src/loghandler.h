@@ -23,8 +23,8 @@
 #ifndef _LOGHANDLER_H_
 #define _LOGHANDLER_H_ 1
 
-#ifdef HAVE_WIN32
-#include "w32compat_util.h"
+#ifdef HAVE_WINDOWS_H
+#include "compat_util.h"
 #endif
 #include <stdio.h>
 #ifdef HAVE_SYSLOG_H

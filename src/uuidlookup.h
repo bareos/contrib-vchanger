@@ -1,4 +1,4 @@
-/* junctions.h
+/* uuidlookup.h
  *
  *  This file is part of vchanger by Josh Fisher.
  *
@@ -21,42 +21,19 @@
  *             Boston,  MA  02111-1307, USA.
  */
 
-#ifndef __JUNCTIONS_H_
-#define __JUNCTIONS_H_
+#ifndef __UUIDLOOKUP_H_
+#define __UUIDLOOKUP_H_
 
-#ifdef HAVE_WINDOWS_H
-#include "targetver.h"
-#include <windows.h>
 #include <sys/types.h>
-
-typedef struct {
-   DWORD ReparseTag;
-   DWORD ReparseDataLength;
-   WORD SubstituteNameOffset;
-   WORD SubstituteNameLength;
-   WORD PrintNameOffset;
-   WORD PrintNameLength;
-   WCHAR ReparseTarget[1];
-}REPARSE_MOUNTPOINT_DATA_BUFFER;
-
-//#define REPARSE_DATA_BUFFER_HEADER_SIZE 8
-//#define MAXIMUM_REPARSE_DATA_BUFFER_SIZE  ( 16 * 1024 )
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-   DWORD CreateJunction(const char *junction, const char *target);
-   DWORD ReadReparsePoint(const char *path, char *target, size_t target_size);
-   DWORD DeleteReparsePoint(const char *path);
-   BOOL IsReparsePoint(const char *path);
-   int symlink(const char *target, const char *path);
-   int unlink_symlink(const char *path);
-   ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+int GetMountpointFromUUID(char *mountp, size_t mountp_sz, const char *uuid_str);
 
 #ifdef __cplusplus
 }
 #endif
-#endif
 
-#endif  /*  __JUNCTIONS_H_  */
+#endif  /*  __UUIDLOOKUP_H_  */

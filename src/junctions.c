@@ -22,9 +22,11 @@
  *
  *  Functions to simulate *nix symlinks (to directories only) using
  *  win32 junctions
-*/
+ */
 
-#include "w32compat_util.h"
+#include "config.h"
+#ifdef HAVE_WINDOWS_H
+#include "compat_util.h"
 #include "junctions.h"
 #include <winioctl.h>
 
@@ -59,7 +61,6 @@ static DWORD ObtainDirPrivs()
    return 0;
 }
 
-
 /*
  *  Static function to check that 'path' is a directory. If 'path'
  *  does not exist, then create directory named 'path'
@@ -75,7 +76,6 @@ static DWORD CheckDirectory(WCHAR *path)
    }
    return 0;
 }
-
 
 /*
  *  Create win32 junction point
@@ -97,7 +97,7 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
 
    /* Normalize target path */
    if (strlen(path_in) > 4 && path_in[0] == '\\' && (path_in[1] == '?' || path_in[1] == '\\')
-	       && path_in[2] == '?' && path_in[3] == '\\') {
+         && path_in[2] == '?' && path_in[3] == '\\') {
       /* Leave path alone if specified as absolute path */
       strcpy(buf, "\\??\\");
       strncpy(buf+4, path_in, sizeof(buf) - 4);
@@ -105,34 +105,34 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
       /* Copy target path using normalized delimiter */
       for (n = 0; path_in[n]; n++)
       {
-	 if (path_in[n] == '/') {
-	    buf[n] = '\\';
-	 } else {
-	    buf[n] = path_in[n];
-	 }
+         if (path_in[n] == '/') {
+            buf[n] = '\\';
+         } else {
+            buf[n] = path_in[n];
+         }
       }
       buf[n] = 0;
       if (buf[0] != '\\' && buf[1] == ':') {
-	 if (buf[2] == 0) {
-	    buf[2] = '\\';
-	    buf[3] = 0;
-	 }
-	 if (buf[2] == '\\' && buf[3] == 0) {
-	    /* Translate drive designator to volume GUID */
-	    strncpy(pbuf, buf, sizeof(pbuf));
-	    if (!GetVolumeNameForVolumeMountPointA(pbuf, buf, sizeof(buf))) {
-	       rc = GetLastError();
-	       junct_err = rc;
-	       FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-			      | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, rc,
-			      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			      (LPSTR)&errmsg, 0, NULL);
-	       snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
-	       return rc;
-	    }
-	    buf[1] = '?';
-	    target_is_volume = TRUE;
-	 }
+         if (buf[2] == 0) {
+            buf[2] = '\\';
+            buf[3] = 0;
+         }
+         if (buf[2] == '\\' && buf[3] == 0) {
+            /* Translate drive designator to volume GUID */
+            strncpy(pbuf, buf, sizeof(pbuf));
+            if (!GetVolumeNameForVolumeMountPointA(pbuf, buf, sizeof(buf))) {
+               rc = GetLastError();
+               junct_err = rc;
+               FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+                     | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, rc,
+                     MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                     (LPSTR)&errmsg, 0, NULL);
+               snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
+               return rc;
+            }
+            buf[1] = '?';
+            target_is_volume = TRUE;
+         }
       }
    }
    /* Convert target path to UTF-16 */
@@ -157,7 +157,7 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
       /* otherwise, make it an absolute path */
       wcsncat(target, path, sizeof(tbuf)/sizeof(WCHAR) - wcslen(target) - 1);
       if (target[wcslen(target)-1] != L'\\') {
-	 wcsncat(target, L"\\", sizeof(tbuf)/sizeof(WCHAR) - wcslen(target) - 1);
+         wcsncat(target, L"\\", sizeof(tbuf)/sizeof(WCHAR) - wcslen(target) - 1);
       }
    }
 
@@ -180,14 +180,14 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
       /* Try to create directory if non-existing */
       rc = 0;
       if (!CreateDirectoryW(junction, NULL)) {
-	 rc = GetLastError();
-	 junct_err = rc;
-	 FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-			      | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, rc,
-			      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			      (LPSTR)&errmsg, 0, NULL);
-	 snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
-     }
+         rc = GetLastError();
+         junct_err = rc;
+         FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+               | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, rc,
+               MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+               (LPSTR)&errmsg, 0, NULL);
+         snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
+      }
    }
    if (rc) {
       junct_err = rc;
@@ -209,14 +209,14 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
 
    /* Open the directory */
    hDir = CreateFileW(junction, GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
-		     FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+         FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
    if (hDir == INVALID_HANDLE_VALUE) {
       rc = GetLastError();
       junct_err = rc;
       FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-			      | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, junct_err,
-			      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			      (LPSTR)&errmsg, 0, NULL);
+            | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, junct_err,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)&errmsg, 0, NULL);
       snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
       free(junction);
       free(path);
@@ -244,13 +244,13 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
 
    /* Set the junction's reparse data */
    if (!DeviceIoControl(hDir, FSCTL_SET_REPARSE_POINT, reparse, reparse->ReparseDataLength + REPARSE_DATA_BUFFER_HEADER_SIZE,
-			NULL, 0, &rc, NULL)) {
+               NULL, 0, &rc, NULL)) {
       rc = GetLastError();
       junct_err = rc;
       FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-			      | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, junct_err,
-			      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-			      (LPSTR)&errmsg, 0, NULL);
+            | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, junct_err,
+            MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+            (LPSTR)&errmsg, 0, NULL);
       snprintf(junct_msg, sizeof(junct_msg), "%s", errmsg);
       CloseHandle(hDir);
       RemoveDirectoryW(junction);
@@ -265,7 +265,6 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
    return 0;
 }
 
-
 /*
  *  When 'path' is a reparse point, return zero put the substitute directory
  *  name in 'target'. Otherwise, return win32 error code and leave
@@ -274,6 +273,7 @@ DWORD CreateJunction(const char *junction_in, const char *path_in)
 DWORD ReadReparsePoint(const char *path_in, char *target_out, size_t target_out_size)
 {
    DWORD rc, dwRetLen, vpath_len;
+   int n;
    HANDLE hFile;
    char buf[MAXIMUM_REPARSE_DATA_BUFFER_SIZE];
    WCHAR *p, *vpath, *path = NULL;
@@ -289,8 +289,8 @@ DWORD ReadReparsePoint(const char *path_in, char *target_out, size_t target_out_
    /* Open the file or directory with no special access permissions, otherwise Vista or higher
     * will not allow it */
    hFile = CreateFileW(path, FILE_READ_EA, FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
-			NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
-			NULL);
+         NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+         NULL);
    if (hFile == INVALID_HANDLE_VALUE) {
       rc = GetLastError();
       free(path);
@@ -312,30 +312,33 @@ DWORD ReadReparsePoint(const char *path_in, char *target_out, size_t target_out_
    if (IsReparseTagMicrosoft(rdata->ReparseTag)) {
       /* Get target of a mountpoint (windows XP or higher) */
       if (rdata->ReparseTag == IO_REPARSE_TAG_MOUNT_POINT) {
-	 /* Check for volume name */
-	 p = (WCHAR*)rdata->ReparseTarget;
-	 if (p[0] == '\\' && p[1] == '?' && p[2] == '?') p[1] = '\\';
-	 if (wcsncmp(p, L"\\\\?\\Volume{", 11) == 0) {
-	    /* Convert volume name to mountpoint path (ie. drive letter) */
-	    vpath = (WCHAR*)malloc(8192);
-	    if (GetVolumePathNamesForVolumeNameW(p, vpath, 4096, &vpath_len)) {
-	       if (!UTF16ToUTF8(vpath, &target, &target_sz)) {
-		  free(vpath);
-		  return ERROR_INVALID_PARAMETER;
-	       }
-	    }
-	    free(vpath);
-	 }
-	 if (!target && !UTF16ToUTF8(p, &target, &target_sz)) {
-	    return ERROR_INVALID_PARAMETER;
-	 }
-	 strncpy(target_out, target, target_out_size);
-	 free(target);
+         /* Check for volume name (as opposed to directory path) */
+         p = (WCHAR*)rdata->ReparseTarget;
+         if (p[0] == '\\' && p[1] == '?' && p[2] == '?') p[1] = '\\';
+         if (wcsncmp(p, L"\\\\?\\Volume{", 11) == 0) {
+            /* Convert volume name to mountpoint path (ie. drive letter) */
+            vpath = (WCHAR*)malloc(8192);
+            if (GetVolumePathNamesForVolumeNameW(p, vpath, 4096, &vpath_len)) {
+               if (!UTF16ToUTF8(vpath, &target, &target_sz)) {
+                  free(vpath);
+                  return ERROR_INVALID_PARAMETER;
+               }
+            }
+            free(vpath);
+         }
+         if (!target && !UTF16ToUTF8(p, &target, &target_sz)) {
+            return ERROR_INVALID_PARAMETER;
+         }
+         strncpy(target_out, target, target_out_size);
+         free(target);
+         n = strlen(target_out);
+         if (n && target_out[n-1] == '\\') {
+            target_out[n-1] = 0;
+         }
       } else return ERROR_INVALID_PARAMETER; /* not a mountpoint */
    } else return ERROR_INVALID_PARAMETER; /* unknown reparse data type */
    return 0;
 }
-
 
 /*
  *  When 'path' is a reparse point, return TRUE. Otherwise FALSE.
@@ -349,14 +352,13 @@ BOOL IsReparsePoint(const char *path_in) {
    if (UTF8ToUTF16(path_in, &path, &path_sz)) {
       attr = GetFileAttributesW(path);
       if (attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_REPARSE_POINT)
-	       == FILE_ATTRIBUTE_REPARSE_POINT) {
-	 rc = TRUE;
+            == FILE_ATTRIBUTE_REPARSE_POINT) {
+         rc = TRUE;
       }
       free(path);
    }
    return rc;
 }
-
 
 /*
  *  Remove reparse data from directory 'path'
@@ -383,7 +385,7 @@ DWORD DeleteReparsePoint(const char *path)
 
    /* Open the directory */
    hDir = CreateFileW(junction, GENERIC_WRITE, 0, NULL, OPEN_EXISTING,
-		     FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+         FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, NULL);
    if (hDir == INVALID_HANDLE_VALUE) {
       rc = GetLastError();
       free(junction);
@@ -396,7 +398,7 @@ DWORD DeleteReparsePoint(const char *path)
 
    /* Unset the junction's reparse data */
    if (!DeviceIoControl(hDir, FSCTL_DELETE_REPARSE_POINT, reparse, REPARSE_DATA_BUFFER_HEADER_SIZE,
-			NULL, 0, &rc, NULL)) {
+               NULL, 0, &rc, NULL)) {
       rc = GetLastError();
       CloseHandle(hDir);
       free(junction);
@@ -408,9 +410,8 @@ DWORD DeleteReparsePoint(const char *path)
    return 0;
 }
 
-
 /*
- *  Simulates the Linux symlink call, but only for directories
+ *  Emulates the POSIX.1-2001 symlink call on win32, but only for directories
  */
 int symlink(const char *target_dir, const char *path)
 {
@@ -423,9 +424,9 @@ int symlink(const char *target_dir, const char *path)
 }
 
 /*
- *  Emulates a Linux unlink(path_to_symlink) call. Needed because
- *  on win32 reparse data is tied to a directory, rather than a file,
- *  so unlink() won't work as it does on a Linux symlink.
+ *  Emulates a unlink(path_to_symlink) call. Needed because,
+ *  on win32, reparse data is tied to a directory, rather than a file,
+ *  so a normal unlink().
  */
 int unlink_symlink(const char *path)
 {
@@ -452,7 +453,7 @@ int unlink_symlink(const char *path)
 }
 
 /*
- *  Emulates a Linux readlink() call.
+ *  Emulates a POSIX.1-2001 readlink() function on win32.
  */
 ssize_t readlink(const char *path, char *buf, size_t bufsiz)
 {
@@ -469,3 +470,4 @@ ssize_t readlink(const char *path, char *buf, size_t bufsiz)
    }
    return strlen(buf);
 }
+#endif

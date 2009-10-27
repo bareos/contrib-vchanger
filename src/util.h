@@ -23,6 +23,9 @@
 #ifndef _UTIL_H_
 #define _UTIL_H_ 1
 
+#include "config.h"
+#include <stdio.h>
+
 /* Utility Functions */
 void build_arglist(char *cmdline, int *argc, char *argv[], int max_argv);
 void print_stderr(const char *format, ...);
@@ -31,11 +34,7 @@ void millisleep(long msecs);
 long timeval_et_ms(struct timeval *tv1, struct timeval *tv2);
 size_t strip_whitespace(char *buff, size_t buff_size);
 int exclusive_fopen(const char *fname, FILE **fs);
-int is_pid_active(pid_t pid);
 int is_root_user();
 int become_another_user(const char *user_name, const char *group_name);
-char* BuildVolumeName(char *vname, size_t vname_sz, const char *chngr, int magnum, int magslot);
-int ParseVolumeName(const char *vname, char *chgr_name, size_t chgr_name_sz, int &mag_num,
-      			int &mag_slot);
 
 #endif /* _UTIL_H_ */

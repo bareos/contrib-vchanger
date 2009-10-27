@@ -23,23 +23,42 @@
 #ifndef CHANGERSTATE_H_
 #define CHANGERSTATE_H_
 
+class VolumeLabel
+{
+public:
+	VolumeLabel();
+	char* GetLabel(char *buf, size_t buf_sz);
+	int set(const char *chgr, int magnum, int magslot);
+	int set(const char *vlabel);
+	void clear();
+	bool empty() { return mag_number < 1 ? true : false; }
+   bool operator==(const VolumeLabel &b);
+   bool operator!=(const VolumeLabel &b);
+   VolumeLabel& operator=(const VolumeLabel &b);
+public:
+	int mag_number;
+	int mag_slot;
+	char chgr_name[128];
+};
+
 class DriveState
 {
 public:
 	DriveState();
 	virtual ~DriveState();
-	int set(const char *chgrname, int magnum, int magslot);
-	int set(const char *volname);
-	void unset();
-	int save();
+	int set(const VolumeLabel &vlabel);
+	int set(const VolumeLabel *vlabel);
+	int set(const char *vname);
+	int unset();
 	int restore();
-	void clear();
+	inline bool IsLoaded() { return is_set; }
+protected:
+   int save();
 public:
+	VolumeLabel vol;
+	bool is_set;
 	int drive;
-	int mag_number;
-	int mag_slot;
 	char statedir[PATH_MAX];
-	char chgr_name[128];
 };
 
 class MagazineState
@@ -47,8 +66,12 @@ class MagazineState
 public:
 	MagazineState();
 	virtual ~MagazineState();
+	int set(const char *magname, const char *automount_dir = NULL);
+	void clear();
+	int ReadMagazineIndex(char *changer_name, size_t changer_name_sz, int &mag_num);
 public:
 	int mag_number;
+	char changer[256];
 	char mountpoint[PATH_MAX];
 };
 

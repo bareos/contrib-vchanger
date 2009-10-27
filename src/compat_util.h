@@ -1,4 +1,4 @@
-/*  w32compat_util.h
+/*  compat_util.h
  *
  *  This file is part of vchanger by Josh Fisher.
  *
@@ -21,25 +21,20 @@
  *             Boston,  MA  02111-1307, USA.
 */
 
-#if !defined(__W32COMPAT_UTIL_H_)
-#define __W32COMPAT_UTIL_H_
+#include "config.h"
 
-// Disable Standard C++ deprecation warnings for VC8 or later
-#if defined(_MSC_VER) && (_MSC_VER >= 1400)
-#pragma warning(disable : 4996)
-#endif
-
-#include "winconfig.h"
+#ifdef HAVE_WINDOWS_H
 #include "targetver.h"
 #include <windows.h>
-#include <WinError.h>
-#ifdef HAVE_SYS_TIME_H
+#include <winerror.h>
+#endif
+
 #include <sys/time.h>
-#endif
-#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#endif
 #include <stdio.h>
+
+#ifdef HAVE_WINDOWS_H
+/* Some utility functions needed for Windows version */
 
 #define EPOCH_FILETIME (116444736000000000LL) // 100 ns intervals between FILETIME epoch and Unix epoch
 
@@ -55,8 +50,11 @@ int w32errno(DWORD werr);
 #ifdef __cplusplus
 }
 #endif
+#endif
 
-/*  Windows doesn't have syslog, so fake it*/
+#ifndef HAVE_SYSLOG_H
+/*  For systems without syslog, provide fake one */
+
 #define LOG_DAEMON  0
 #define LOG_ERR     1
 #define LOG_CRIT    2
@@ -91,18 +89,26 @@ void closelog(void);
 #ifdef __cplusplus
 }
 #endif
+#endif
 
-/* mingw doesn't implement some common Linux functions, so add them here */
+#ifndef HAVE_CTIME_R
+/* For systems without ctime_r function, use internal version */
 #ifdef __cplusplus
 extern "C" {
 #endif
-
 char *ctime_r(const time_t *timep, char *buf);
-ssize_t getline(char **lineptr, size_t *n, FILE *stream);
-int mkstemp(char *templ);
-
 #ifdef __cplusplus
 }
 #endif
+#endif
 
-#endif /* __W32COMPAT_UTIL_H_ */
+#ifndef HAVE_GETLINE
+/* For systems without getline function, use internal version */
+#ifdef __cplusplus
+extern "C" {
+#endif
+ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+#ifdef __cplusplus
+}
+#endif
+#endif

@@ -1,5 +1,12 @@
 vchanger ChangeLog
 
+0.8.3  (2009-10-27)
+  - Add specification of magazines by partition UUID
+  - Add LISTMAGS command to list magazines assigned to an autochanger
+  - Empty, rather than delete, loadedN files to prevent out of space
+    error on magazine partition
+  - Fix error parsing index files. (bug 2785183)
+  - Fixes for FreeBSD compatibility. (bug 2872006)
 0.8.2  [2009-04-14]
   - Corrections to documentation
 0.8.1  [2009-01-27]

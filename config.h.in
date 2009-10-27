@@ -1,7 +1,10 @@
-/* config.h.in.  Generated from configure.in by autoheader.  */
+/* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* "Copyright Notice" */
-#undef COPYRIGHT_NOTICE
+/* Define to 1 if you have the <blkid/blkid.h> header file. */
+#undef HAVE_BLKID_BLKID_H
+
+/* Define to 1 if you have the `ctime_r' function. */
+#undef HAVE_CTIME_R
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -15,6 +18,12 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the `getline' function. */
+#undef HAVE_GETLINE
+
+/* Define to 1 if you have the `getmntent_r' function. */
+#undef HAVE_GETMNTENT_R
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
@@ -40,6 +49,9 @@
 
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
+
+/* Define to 1 if you have the <mntent.h> header file. */
+#undef HAVE_MNTENT_H
 
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
@@ -107,12 +119,19 @@
 /* Define to 1 if you have the `vprintf' function. */
 #undef HAVE_VPRINTF
 
+/* Define to 1 if you have the <windows.h> header file. */
+#undef HAVE_WINDOWS_H
+
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
 /* Define to 1 if `lstat' dereferences a symlink specified with a trailing
    slash. */
 #undef LSTAT_FOLLOWS_SLASHED_SYMLINK
+
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
+#undef LT_OBJDIR
 
 /* Name of package */
 #undef PACKAGE

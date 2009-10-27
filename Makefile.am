@@ -6,7 +6,6 @@ doc_DATA = INSTALL \
 	AUTHORS \
 	NEWS \
 	COPYING \
-	INSTALL \
 	ChangeLog \
 	doc/vchangerHowto.html \
 	doc/README.by-label \

@@ -1,4 +1,4 @@
-/*  w32compat_util.c
+/*  compat_util.c
  *
  *  This file is part of vchanger by Josh Fisher.
  *
@@ -19,9 +19,9 @@
  *  write to:  The Free Software Foundation, Inc.,
  *             59 Temple Place - Suite 330,
  *             Boston,  MA  02111-1307, USA.
-*/
+ */
 
-#include "w32compat_util.h"
+#include "vchanger.h"
 #include <errno.h>
 #ifndef ENODATA
 #define ENODATA EIO
@@ -35,10 +35,8 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#ifdef HAVE_STDINT_H
-#include <stdint.h>
-#endif
 
+#ifdef HAVE_WINDOWS_H
 /*
  *  Convert 100 ns intervals since 1601-01-01 00:00:00 UTC in 'ftime' to
  *  seconds since 1970-01-01 00:00:00 UTC and return as type time_t.
@@ -47,12 +45,11 @@ time_t ftime2utime(const FILETIME *ftime)
 {
    uint64_t ut = ftime->dwHighDateTime;
    ut <<= 32;
-   ut |= ftime->dwLowDateTime;	/* 100 ns intervals since FILETIME epoch */
-   ut -= EPOCH_FILETIME;	/* convert to 100 ns intervals since Unix epoch */
-   ut /= 10000000;		/* convert to seconds since Unix epoch */
+   ut |= ftime->dwLowDateTime; /* 100 ns intervals since FILETIME epoch */
+   ut -= EPOCH_FILETIME; /* convert to 100 ns intervals since Unix epoch */
+   ut /= 10000000; /* convert to seconds since Unix epoch */
    return (time_t)ut;
 }
-
 
 /*
  *  Utility function to convert UTF-8 string 'str' to a UTF-16 string. 'u16str'
@@ -71,14 +68,14 @@ wchar_t* UTF8ToUTF16(const char *str, wchar_t **u16str, size_t *u16size)
 {
    size_t needed;
    if (!str) {
-      return NULL;  /* NULL input string is an error */
+      return NULL; /* NULL input string is an error */
    }
    /* Determine size of buffer needed for UTF-16 string */
    needed = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
    if (*u16str) {
       /* If caller supplied a buffer, check that it's large enough */
       if (*u16size < needed) {
-	 return NULL;  /* caller's buffer is too small */
+         return NULL; /* caller's buffer is too small */
       }
    } else {
       /* If caller did not supply buffer, then allocate one */
@@ -89,7 +86,6 @@ wchar_t* UTF8ToUTF16(const char *str, wchar_t **u16str, size_t *u16size)
    MultiByteToWideChar(CP_UTF8, 0, str, -1, *u16str, *u16size);
    return *u16str;
 }
-
 
 /*
  *  Utility function to convert UTF-16 string 'u16str' to a UTF-8 string. 'str'
@@ -108,14 +104,14 @@ char *UTF16ToUTF8(const wchar_t *u16str, char **str, size_t *str_size)
 {
    size_t needed;
    if (!u16str) {
-      return NULL;  /* NULL input string is an error */
+      return NULL; /* NULL input string is an error */
    }
    /* Determine size of buffer needed for UTF-8 string */
    needed = WideCharToMultiByte(CP_UTF8, 0, u16str, -1, NULL, 0, NULL, NULL);
    if (*str) {
       /* If caller supplied a buffer, check that it's large enough */
       if (*str_size < needed) {
-	 return NULL;  // caller's buffer is too small */
+         return NULL; // caller's buffer is too small */
       }
    } else {
       /* If caller did not supply buffer, then allocate one */
@@ -127,14 +123,12 @@ char *UTF16ToUTF8(const wchar_t *u16str, char **str, size_t *str_size)
    return *str;
 }
 
-
 /*
  *  Translate win32 error codes to errno
  */
 int w32errno(DWORD werr)
 {
-   switch (werr)
-   {
+   switch (werr) {
    case ERROR_SUCCESS:
       return 0;
    case ERROR_ACCESS_DENIED:
@@ -241,11 +235,13 @@ int w32errno(DWORD werr)
    }
    return ENOSYS;
 }
+#endif
 
+#ifndef HAVE_SYSLOG_H
 
 /*  Windows doesn't do syslog() ... ignore for now. Perhaps win32 event logging
-*  could be used to emulate syslog in future.
-*/
+ *  could be used to emulate syslog in future.
+ */
 void openlog(const char *app, int option, int facility)
 {
 }
@@ -257,14 +253,14 @@ void closelog(void)
 void syslog(int type, const char *fmt, ...)
 {
 }
+#endif
 
-/*  msvcrt.dll doesn't have some common Linux functions, so implement here */
-
+#ifndef HAVE_CTIME_R
 /*
- *  Emulate SUSv2 ctime_r() function using C89 ctime(). Note that msvcrt.dll
- *  uses thread-local storage for the ctime() result string so that ctime()
- *  in msvcrt.dll is thread-safe, so a simple wrapper around ctime() is
- *  OK.
+ *  Emulate SUSv2 ctime_r() function using C89 ctime(). Note that this
+ *  keeps the caller from using the unsafe buffer  over any extended period,
+ *  but it is still not thread safe and will fail if two threads call this
+ *  function nearly simultaneously.
  */
 char *ctime_r(const time_t *timep, char *buf)
 {
@@ -275,8 +271,9 @@ char *ctime_r(const time_t *timep, char *buf)
    strncpy(buf, tt, 26);
    return buf;
 }
+#endif
 
-
+#ifndef HAVE_GETLINE
 /*
  *   Emulate GNU extension function getline().
  */
@@ -293,58 +290,29 @@ ssize_t getline(char **lineptr, size_t *lineptr_sz, FILE *stream)
       *lineptr_sz = 4096;
       *lineptr = (char*)malloc(*lineptr_sz);
       if (*lineptr == NULL) {
-	 return -1;
+         return -1;
       }
    }
    while (c != EOF && c != '\n')
    {
       if (n + 1 >= *lineptr_sz) {
-	 *lineptr_sz += 4096;
-	 *lineptr = (char*)realloc(*lineptr, *lineptr_sz);
-	 if (*lineptr == NULL) {
-	    return -1;
-	 }
+         *lineptr_sz += 4096;
+         *lineptr = (char*)realloc(*lineptr, *lineptr_sz);
+         if (*lineptr == NULL) {
+            return -1;
+         }
       }
       (*lineptr)[n++] = (char)c;
       c = fgetc(stream);
    }
    if (c == '\n') {
       if (n && (*lineptr)[n-1] == '\r') {
-	 (*lineptr)[n-1] = '\n';
+         (*lineptr)[n-1] = '\n';
       } else {
-	 (*lineptr)[n++] = '\n';
+         (*lineptr)[n++] = '\n';
       }
    }
    (*lineptr)[n] = 0;
    return (ssize_t)n;
 }
-
-
-/*
- *   Emulate GNU extension function mkstemp().
- */
-int mkstemp(char *templ)
-{
-   int fd;
-   size_t len, n;
-   static const char sym[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-
-   len = strlen(templ);
-   if (len < 6 || strcmp(templ + (len - 6), "XXXXXX"))
-   {
-      errno = EINVAL;
-      return -1;
-   }
-   sprintf(templ + (len - 5), "%.5u", (unsigned int)getpid() % 100000);
-   for (n = 0; n < sizeof(sym); ++n)
-   {
-      templ[len - 6] = sym[n];
-      fd = open(templ, O_RDWR|O_BINARY|O_CREAT|O_EXCL, 0600);
-      if (fd >= 0) {
-	 return fd;
-      }
-   }
-   /* We return the null string if we can't find a unique file name.  */
-   templ[0] = '\0';
-   return -1;
-}
+#endif

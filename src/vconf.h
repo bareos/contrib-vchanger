@@ -26,17 +26,19 @@
 
 #define DEFAULT_VIRTUAL_DRIVES 1
 #define DEFAULT_SLOTS_PER_MAG 10
+#define DEFAULT_MAGAZINE_BAYS 1
 #define DEFAULT_CHANGER_NAME "vchanger"
 #define DEFAULT_LOGFILE ""
-#define MAX_SLOTS 999
-#define MAX_DRIVES 99
-#define MAX_MAGAZINES 33
-#ifdef HAVE_WIN32
+#define MAX_MAGAZINE_BAYS 32
+#define MAX_DRIVES 16
+#define MAX_SLOTS 9999
+#define MAX_MAGAZINES 128
+#ifdef HAVE_WINDOWS_H
 #define DEFAULT_CONFIG_FILE "\\Bacula\\vchanger.conf"
-#define DEFAULT_STATE_DIR "\\Bacula\\Work"
+#define DEFAULT_WORK_DIR "\\Bacula\\Work"
 #else
 #define DEFAULT_CONFIG_FILE "/etc/bacula/vchanger.conf"
-#define DEFAULT_STATE_DIR "/var/lib/bacula"
+#define DEFAULT_WORK_DIR "/var/lib/bacula"
 #endif
 
 /* Configuration values */
@@ -45,13 +47,15 @@ class VchangerConfig
 {
 public:
    char changer_name[128];
-   char state_dir[PATH_MAX];
-   char *magazine[MAX_MAGAZINES];
+   char work_dir[PATH_MAX];
+   char *magazine[MAX_MAGAZINES + 1];
    char logfile[PATH_MAX];
-   int32_t num_magazines;
-   int32_t virtual_drives;
-   int32_t slots_per_mag;
-   int32_t slots;
+   char automount_dir[PATH_MAX];
+   int known_magazines;
+   int magazine_bays;
+   int virtual_drives;
+   int slots_per_mag;
+   int slots;
 public:
    VchangerConfig();
    ~VchangerConfig();

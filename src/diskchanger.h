@@ -19,10 +19,9 @@
  *  write to:  The Free Software Foundation, Inc.,
  *             59 Temple Place - Suite 330,
  *             Boston,  MA  02111-1307, USA.
-*/
+ */
 #ifndef DISKCHANGER_H_
 #define DISKCHANGER_H_
-
 
 #include "vconf.h"
 #include "changerstate.h"
@@ -45,27 +44,28 @@ protected:
    void internalUnlock();
    void SetDefaults();
    int GetDriveSymlinkDir(int drv, char *lnkdir, size_t lnkdir_size);
-   int DoLoad(int magndx, int drv, int magslot);
-   int DoUnload(int magndx, int drive, int magslot);
+   int DoLoad(int magndx, int drv, VolumeLabel &lab);
+   int DoUnload(int magndx, int drive, VolumeLabel &lab);
    int SetDriveSymlink(int drv, const char *mountpoint);
    int RemoveDriveSymlink(int drv);
-   int ReadMagazineIndex(const char *mountpt);
    int WriteMagazineIndex(const char *mountpt, int magnum);
-   int ReadMagazineLoaded(const char *mountpt, int drive, char *chgr_name, int &mag_num);
-   int WriteMagazineLoaded(const char *mountpt, int drive, int magslot);
+   int ReadMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab);
+   int WriteMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab);
    int ReadNextMagazineNumber();
    int WriteNextMagazineNumber(int magnum);
-   int MagNum2MagIndex(int mganum);
+   int MagNum2MagBay(int mganum);
    int MagSlot2VirtualSlot(int magnum, int magslot);
    int VirtualSlot2MagSlot(int slot, int &mag_ndx);
+   int VirtualSlot2VolumeLabel(int slot, VolumeLabel &lab);
+   int VolumeLabel2VirtualSlot(const VolumeLabel &lab);
 public:
    char changer_name[64];
-   char state_dir[PATH_MAX];
-   MagazineState magazine[MAX_MAGAZINES];
+   char work_dir[PATH_MAX];
+   MagazineState magazine[MAX_MAGAZINE_BAYS];
    DriveState drive[MAX_DRIVES];
-   int32_t mag_number[MAX_MAGAZINES];
-   int32_t loaded[MAX_MAGAZINES];
-   int32_t num_magazines;
+//   int32_t mag_number[MAX_MAGAZINES];
+//   int32_t loaded[MAX_MAGAZINES];
+   int32_t magazine_bays;
    int32_t virtual_drives;
    int32_t slots_per_mag;
    int32_t slots;
