@@ -13,5 +13,6 @@ if BUILDWIN32
 vchanger_LDADD = -lpsapi
 vchanger_LDFLAGS = -static-libgcc
 else
-vchanger_LDADD = -lblkid
+vchanger_CPPFLAGS = -I/usr/local/include
+vchanger_LDADD = -L/usr/local/lib -lblkid
 endif

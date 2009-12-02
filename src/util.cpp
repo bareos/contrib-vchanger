@@ -24,13 +24,12 @@
  */
 
 #include "vchanger.h"
+#include <stdarg.h>
 #include <fcntl.h>
 #include <time.h>
 #if HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
-#include "util.h"
-#include <stdarg.h>
 #ifdef HAVE_WINDOWS_H
 #include <psapi.h>
 #include <shlobj.h>
@@ -38,6 +37,7 @@
 #include <grp.h>
 #include <pwd.h>
 #endif
+#include "util.h"
 
 /*-------------------------------------------------
  *  Function to parse string 'cmdline' and build argc and argv

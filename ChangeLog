@@ -1,5 +1,8 @@
 vchanger ChangeLog
 
+0.8.4  (2009-12-02)
+  - Ignore slot number passed to 'loaded' command (bug 2907225)
+  - Fix libblkid linking for FreeBSD (bug 2872006)
 0.8.3  (2009-10-27)
   - Add specification of magazines by partition UUID
   - Add LISTMAGS command to list magazines assigned to an autochanger

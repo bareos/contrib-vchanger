@@ -413,13 +413,16 @@ int main(int argc, char *argv[])
    if (strlen(conf.logfile)) {
       vlog.OpenLog(conf.logfile, LOG_INFO);
    }
-   /* Sanity check drive and slot numbers */
-   if (cmdl.command > 1 && cmdl.command < 5) {
+   /* Sanity check slot number for load command */
+   if (cmdl.command == 2) {
       if ((cmdl.slot < 1) || (cmdl.slot > conf.slots)) {
          vlog.Error("%s: Error! invalid slot %d", conf.changer_name, cmdl.slot);
          print_stderr("invalid slot number %d\n", cmdl.slot);
          return 1;
       }
+   }
+   /* Sanity check drive number for load, unload, and loaded commands */
+   if (cmdl.command > 1 && cmdl.command < 5) {
       if (cmdl.drive < 0 || cmdl.drive >= conf.virtual_drives) {
          vlog.Error("%s: Error! invalid drive %d", conf.changer_name,
                cmdl.drive);

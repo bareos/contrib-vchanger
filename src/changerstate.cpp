@@ -25,11 +25,11 @@
 */
 
 #include <stdio.h>
+#include <sys/stat.h>
 #include "vchanger.h"
 #include "util.h"
 #include "changerstate.h"
 #include "uuidlookup.h"
-#include <sys/stat.h>
 
 
 ///////////////////////////////////////////////////

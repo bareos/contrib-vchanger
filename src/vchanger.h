@@ -41,23 +41,21 @@
 #define _POSIX_PTHREAD_SEMANTICS 1
 
 /* System includes */
-#include <stdio.h>
-#if HAVE_STDLIB_H
+#include <sys/types.h>
 #include <stdlib.h>
-#endif
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <errno.h>
-#if HAVE_ALLOCA_H
-#include <alloca.h>
-#endif
 #if HAVE_STRINGS_H
 #include <strings.h>
+#endif
+#if HAVE_ALLOCA_H
+#include <alloca.h>
 #endif
 #if HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <sys/types.h>
 #ifdef HAVE_SYS_BITYPES_H
 #include <sys/bitypes.h>
 #endif

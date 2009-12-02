@@ -47,10 +47,12 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
-am_vchanger_OBJECTS = vchanger_common.$(OBJEXT) compat_util.$(OBJEXT) \
-	junctions.$(OBJEXT) uuidlookup.$(OBJEXT) util.$(OBJEXT) \
-	vconf.$(OBJEXT) loghandler.$(OBJEXT) diskchanger.$(OBJEXT) \
-	changerstate.$(OBJEXT) vchanger.$(OBJEXT)
+am_vchanger_OBJECTS = vchanger-vchanger_common.$(OBJEXT) \
+	vchanger-compat_util.$(OBJEXT) vchanger-junctions.$(OBJEXT) \
+	vchanger-uuidlookup.$(OBJEXT) vchanger-util.$(OBJEXT) \
+	vchanger-vconf.$(OBJEXT) vchanger-loghandler.$(OBJEXT) \
+	vchanger-diskchanger.$(OBJEXT) vchanger-changerstate.$(OBJEXT) \
+	vchanger-vchanger.$(OBJEXT)
 vchanger_OBJECTS = $(am_vchanger_OBJECTS)
 vchanger_DEPENDENCIES =
 vchanger_LINK = $(LIBTOOL) --tag=CXX $(AM_LIBTOOLFLAGS) \
@@ -210,9 +212,10 @@ vchanger_SOURCES = vchanger_common.h vchanger_common.cpp \
 					changerstate.h changerstate.cpp \
 					vchanger.cpp
 
-@BUILDWIN32_FALSE@vchanger_LDADD = -lblkid
+@BUILDWIN32_FALSE@vchanger_LDADD = -L/usr/local/lib -lblkid
 @BUILDWIN32_TRUE@vchanger_LDADD = -lpsapi
 @BUILDWIN32_TRUE@vchanger_LDFLAGS = -static-libgcc
+@BUILDWIN32_FALSE@vchanger_CPPFLAGS = -I/usr/local/include
 all: all-am
 
 .SUFFIXES:
@@ -300,16 +303,16 @@ mostlyclean-compile:
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changerstate.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/compat_util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/diskchanger.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/junctions.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/loghandler.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/util.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uuidlookup.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger_common.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vconf.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-changerstate.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-compat_util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-diskchanger.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-junctions.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-loghandler.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-util.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-uuidlookup.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-vchanger.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-vchanger_common.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vchanger-vconf.Po@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -332,6 +335,48 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
 
+vchanger-compat_util.o: compat_util.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-compat_util.o -MD -MP -MF $(DEPDIR)/vchanger-compat_util.Tpo -c -o vchanger-compat_util.o `test -f 'compat_util.c' || echo '$(srcdir)/'`compat_util.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-compat_util.Tpo $(DEPDIR)/vchanger-compat_util.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='compat_util.c' object='vchanger-compat_util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-compat_util.o `test -f 'compat_util.c' || echo '$(srcdir)/'`compat_util.c
+
+vchanger-compat_util.obj: compat_util.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-compat_util.obj -MD -MP -MF $(DEPDIR)/vchanger-compat_util.Tpo -c -o vchanger-compat_util.obj `if test -f 'compat_util.c'; then $(CYGPATH_W) 'compat_util.c'; else $(CYGPATH_W) '$(srcdir)/compat_util.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-compat_util.Tpo $(DEPDIR)/vchanger-compat_util.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='compat_util.c' object='vchanger-compat_util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-compat_util.obj `if test -f 'compat_util.c'; then $(CYGPATH_W) 'compat_util.c'; else $(CYGPATH_W) '$(srcdir)/compat_util.c'; fi`
+
+vchanger-junctions.o: junctions.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-junctions.o -MD -MP -MF $(DEPDIR)/vchanger-junctions.Tpo -c -o vchanger-junctions.o `test -f 'junctions.c' || echo '$(srcdir)/'`junctions.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-junctions.Tpo $(DEPDIR)/vchanger-junctions.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='junctions.c' object='vchanger-junctions.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-junctions.o `test -f 'junctions.c' || echo '$(srcdir)/'`junctions.c
+
+vchanger-junctions.obj: junctions.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-junctions.obj -MD -MP -MF $(DEPDIR)/vchanger-junctions.Tpo -c -o vchanger-junctions.obj `if test -f 'junctions.c'; then $(CYGPATH_W) 'junctions.c'; else $(CYGPATH_W) '$(srcdir)/junctions.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-junctions.Tpo $(DEPDIR)/vchanger-junctions.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='junctions.c' object='vchanger-junctions.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-junctions.obj `if test -f 'junctions.c'; then $(CYGPATH_W) 'junctions.c'; else $(CYGPATH_W) '$(srcdir)/junctions.c'; fi`
+
+vchanger-uuidlookup.o: uuidlookup.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-uuidlookup.o -MD -MP -MF $(DEPDIR)/vchanger-uuidlookup.Tpo -c -o vchanger-uuidlookup.o `test -f 'uuidlookup.c' || echo '$(srcdir)/'`uuidlookup.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-uuidlookup.Tpo $(DEPDIR)/vchanger-uuidlookup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='uuidlookup.c' object='vchanger-uuidlookup.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-uuidlookup.o `test -f 'uuidlookup.c' || echo '$(srcdir)/'`uuidlookup.c
+
+vchanger-uuidlookup.obj: uuidlookup.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT vchanger-uuidlookup.obj -MD -MP -MF $(DEPDIR)/vchanger-uuidlookup.Tpo -c -o vchanger-uuidlookup.obj `if test -f 'uuidlookup.c'; then $(CYGPATH_W) 'uuidlookup.c'; else $(CYGPATH_W) '$(srcdir)/uuidlookup.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/vchanger-uuidlookup.Tpo $(DEPDIR)/vchanger-uuidlookup.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='uuidlookup.c' object='vchanger-uuidlookup.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o vchanger-uuidlookup.obj `if test -f 'uuidlookup.c'; then $(CYGPATH_W) 'uuidlookup.c'; else $(CYGPATH_W) '$(srcdir)/uuidlookup.c'; fi`
+
 .cpp.o:
 @am__fastdepCXX_TRUE@	$(CXXCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
 @am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
@@ -352,6 +397,104 @@ distclean-compile:
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(LTCXXCOMPILE) -c -o $@ $<
+
+vchanger-vchanger_common.o: vchanger_common.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vchanger_common.o -MD -MP -MF $(DEPDIR)/vchanger-vchanger_common.Tpo -c -o vchanger-vchanger_common.o `test -f 'vchanger_common.cpp' || echo '$(srcdir)/'`vchanger_common.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vchanger_common.Tpo $(DEPDIR)/vchanger-vchanger_common.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vchanger_common.cpp' object='vchanger-vchanger_common.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vchanger_common.o `test -f 'vchanger_common.cpp' || echo '$(srcdir)/'`vchanger_common.cpp
+
+vchanger-vchanger_common.obj: vchanger_common.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vchanger_common.obj -MD -MP -MF $(DEPDIR)/vchanger-vchanger_common.Tpo -c -o vchanger-vchanger_common.obj `if test -f 'vchanger_common.cpp'; then $(CYGPATH_W) 'vchanger_common.cpp'; else $(CYGPATH_W) '$(srcdir)/vchanger_common.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vchanger_common.Tpo $(DEPDIR)/vchanger-vchanger_common.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vchanger_common.cpp' object='vchanger-vchanger_common.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vchanger_common.obj `if test -f 'vchanger_common.cpp'; then $(CYGPATH_W) 'vchanger_common.cpp'; else $(CYGPATH_W) '$(srcdir)/vchanger_common.cpp'; fi`
+
+vchanger-util.o: util.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-util.o -MD -MP -MF $(DEPDIR)/vchanger-util.Tpo -c -o vchanger-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-util.Tpo $(DEPDIR)/vchanger-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cpp' object='vchanger-util.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-util.o `test -f 'util.cpp' || echo '$(srcdir)/'`util.cpp
+
+vchanger-util.obj: util.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-util.obj -MD -MP -MF $(DEPDIR)/vchanger-util.Tpo -c -o vchanger-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-util.Tpo $(DEPDIR)/vchanger-util.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='util.cpp' object='vchanger-util.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-util.obj `if test -f 'util.cpp'; then $(CYGPATH_W) 'util.cpp'; else $(CYGPATH_W) '$(srcdir)/util.cpp'; fi`
+
+vchanger-vconf.o: vconf.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vconf.o -MD -MP -MF $(DEPDIR)/vchanger-vconf.Tpo -c -o vchanger-vconf.o `test -f 'vconf.cpp' || echo '$(srcdir)/'`vconf.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vconf.Tpo $(DEPDIR)/vchanger-vconf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vconf.cpp' object='vchanger-vconf.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vconf.o `test -f 'vconf.cpp' || echo '$(srcdir)/'`vconf.cpp
+
+vchanger-vconf.obj: vconf.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vconf.obj -MD -MP -MF $(DEPDIR)/vchanger-vconf.Tpo -c -o vchanger-vconf.obj `if test -f 'vconf.cpp'; then $(CYGPATH_W) 'vconf.cpp'; else $(CYGPATH_W) '$(srcdir)/vconf.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vconf.Tpo $(DEPDIR)/vchanger-vconf.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vconf.cpp' object='vchanger-vconf.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vconf.obj `if test -f 'vconf.cpp'; then $(CYGPATH_W) 'vconf.cpp'; else $(CYGPATH_W) '$(srcdir)/vconf.cpp'; fi`
+
+vchanger-loghandler.o: loghandler.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-loghandler.o -MD -MP -MF $(DEPDIR)/vchanger-loghandler.Tpo -c -o vchanger-loghandler.o `test -f 'loghandler.cpp' || echo '$(srcdir)/'`loghandler.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-loghandler.Tpo $(DEPDIR)/vchanger-loghandler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='loghandler.cpp' object='vchanger-loghandler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-loghandler.o `test -f 'loghandler.cpp' || echo '$(srcdir)/'`loghandler.cpp
+
+vchanger-loghandler.obj: loghandler.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-loghandler.obj -MD -MP -MF $(DEPDIR)/vchanger-loghandler.Tpo -c -o vchanger-loghandler.obj `if test -f 'loghandler.cpp'; then $(CYGPATH_W) 'loghandler.cpp'; else $(CYGPATH_W) '$(srcdir)/loghandler.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-loghandler.Tpo $(DEPDIR)/vchanger-loghandler.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='loghandler.cpp' object='vchanger-loghandler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-loghandler.obj `if test -f 'loghandler.cpp'; then $(CYGPATH_W) 'loghandler.cpp'; else $(CYGPATH_W) '$(srcdir)/loghandler.cpp'; fi`
+
+vchanger-diskchanger.o: diskchanger.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-diskchanger.o -MD -MP -MF $(DEPDIR)/vchanger-diskchanger.Tpo -c -o vchanger-diskchanger.o `test -f 'diskchanger.cpp' || echo '$(srcdir)/'`diskchanger.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-diskchanger.Tpo $(DEPDIR)/vchanger-diskchanger.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='diskchanger.cpp' object='vchanger-diskchanger.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-diskchanger.o `test -f 'diskchanger.cpp' || echo '$(srcdir)/'`diskchanger.cpp
+
+vchanger-diskchanger.obj: diskchanger.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-diskchanger.obj -MD -MP -MF $(DEPDIR)/vchanger-diskchanger.Tpo -c -o vchanger-diskchanger.obj `if test -f 'diskchanger.cpp'; then $(CYGPATH_W) 'diskchanger.cpp'; else $(CYGPATH_W) '$(srcdir)/diskchanger.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-diskchanger.Tpo $(DEPDIR)/vchanger-diskchanger.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='diskchanger.cpp' object='vchanger-diskchanger.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-diskchanger.obj `if test -f 'diskchanger.cpp'; then $(CYGPATH_W) 'diskchanger.cpp'; else $(CYGPATH_W) '$(srcdir)/diskchanger.cpp'; fi`
+
+vchanger-changerstate.o: changerstate.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-changerstate.o -MD -MP -MF $(DEPDIR)/vchanger-changerstate.Tpo -c -o vchanger-changerstate.o `test -f 'changerstate.cpp' || echo '$(srcdir)/'`changerstate.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-changerstate.Tpo $(DEPDIR)/vchanger-changerstate.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='changerstate.cpp' object='vchanger-changerstate.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-changerstate.o `test -f 'changerstate.cpp' || echo '$(srcdir)/'`changerstate.cpp
+
+vchanger-changerstate.obj: changerstate.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-changerstate.obj -MD -MP -MF $(DEPDIR)/vchanger-changerstate.Tpo -c -o vchanger-changerstate.obj `if test -f 'changerstate.cpp'; then $(CYGPATH_W) 'changerstate.cpp'; else $(CYGPATH_W) '$(srcdir)/changerstate.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-changerstate.Tpo $(DEPDIR)/vchanger-changerstate.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='changerstate.cpp' object='vchanger-changerstate.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-changerstate.obj `if test -f 'changerstate.cpp'; then $(CYGPATH_W) 'changerstate.cpp'; else $(CYGPATH_W) '$(srcdir)/changerstate.cpp'; fi`
+
+vchanger-vchanger.o: vchanger.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vchanger.o -MD -MP -MF $(DEPDIR)/vchanger-vchanger.Tpo -c -o vchanger-vchanger.o `test -f 'vchanger.cpp' || echo '$(srcdir)/'`vchanger.cpp
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vchanger.Tpo $(DEPDIR)/vchanger-vchanger.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vchanger.cpp' object='vchanger-vchanger.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vchanger.o `test -f 'vchanger.cpp' || echo '$(srcdir)/'`vchanger.cpp
+
+vchanger-vchanger.obj: vchanger.cpp
+@am__fastdepCXX_TRUE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -MT vchanger-vchanger.obj -MD -MP -MF $(DEPDIR)/vchanger-vchanger.Tpo -c -o vchanger-vchanger.obj `if test -f 'vchanger.cpp'; then $(CYGPATH_W) 'vchanger.cpp'; else $(CYGPATH_W) '$(srcdir)/vchanger.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(am__mv) $(DEPDIR)/vchanger-vchanger.Tpo $(DEPDIR)/vchanger-vchanger.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	source='vchanger.cpp' object='vchanger-vchanger.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(vchanger_CPPFLAGS) $(CPPFLAGS) $(AM_CXXFLAGS) $(CXXFLAGS) -c -o vchanger-vchanger.obj `if test -f 'vchanger.cpp'; then $(CYGPATH_W) 'vchanger.cpp'; else $(CYGPATH_W) '$(srcdir)/vchanger.cpp'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
