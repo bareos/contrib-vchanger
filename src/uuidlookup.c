@@ -29,6 +29,9 @@
 #ifdef HAVE_WINDOWS_H
 #include <winioctl.h>
 #else
+#ifdef HAVE_UUID_UUID_H
+#include <uuid/uuid.h>
+#endif
 #ifdef HAVE_BLKID_BLKID_H
 #include <blkid/blkid.h>
 #endif

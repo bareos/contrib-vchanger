@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([vchanger], [0.8.4], [jfisher@jaybus.com])
+AC_INIT([vchanger], [0.8.5], [jfisher@jaybus.com])
 AC_ARG_ENABLE(win32,[  --enable-win32     Build for win32],
  [case "${enableval}" in
   yes) win32=true ;;
@@ -28,7 +28,7 @@ AC_HEADER_STDC
 AC_HEADER_STDBOOL
 AC_CHECK_HEADERS([time.h sys/time.h sys/wait.h dirent.h fcntl.h limits.h locale.h syslog.h])
 AC_CHECK_HEADERS([strings.h alloca.h sys/bitypes.h getopt.h utime.h sys/stat.h])
-AC_CHECK_HEADERS([blkid/blkid.h mntent.h unistd.h windows.h])
+AC_CHECK_HEADERS([uuid/uuid.h blkid/blkid.h mntent.h unistd.h windows.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_TOOL([STRIP],[strip])

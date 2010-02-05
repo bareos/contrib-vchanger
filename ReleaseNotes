@@ -1,4 +1,10 @@
- Release Notes for vchanger 0.8.4
+ Release Notes for vchanger 0.8.5
+
+ Release 0.8.5
+
+ Minor bug fix release. Fixes link errors for older versions of e2fsprogs on some
+ distros (bug 2941290). Also applies the "safe strncat" patch to prevent a buffer
+ overrun present in strncat in some standard C libraries.
 
  Release 0.8.4
 
@@ -73,4 +79,4 @@
  Bugs Fixed:
  
  =================================================================
- 
+

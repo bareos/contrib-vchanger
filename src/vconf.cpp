@@ -54,6 +54,22 @@ static int my_mkdir(const char *path, mode_t mode)
 #endif
 }
 
+/*-------------------------------------------
+ * Local function to replace standard C strncat() with safer version
+ *-------------------------------------------*/
+static char* my_strncat(char *dest, const char *src, size_t n)
+{
+   size_t doff = strlen(dest);
+   size_t i;
+
+   if (!n || doff >= n) return dest;
+   --n;
+   for (i = 0; doff < n && src[i] != '\0' ; i++)
+       dest[doff++] = src[i];
+   dest[doff] = '\0';
+   return dest;
+}
+
 /*-------------------------------------------------
  *  Function to extract a word from line of text
  *------------------------------------------------*/
@@ -199,10 +215,10 @@ void VchangerConfig::SetDefaults()
     * is in a different location depending on Windows version.
     * "\Documents and Settings\All Users\Application Data\Bacula\Work" on XP */
    if (SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, (TCHAR*)tmp) == S_OK)
-   strncpy(work_dir, tmp, sizeof(work_dir));
+	   strncpy(work_dir, tmp, sizeof(work_dir));
    else
-   work_dir[0] = 0;
-   strncat(work_dir, DEFAULT_WORK_DIR, sizeof(work_dir));
+	   work_dir[0] = 0;
+   my_strncat(work_dir, DEFAULT_WORK_DIR, sizeof(work_dir));
 #else
 
    strncpy(work_dir, DEFAULT_WORK_DIR, sizeof(work_dir));
@@ -302,8 +318,8 @@ bool VchangerConfig::Read(const char *cfile)
       /* use default config file */
 #if HAVE_WINDOWS_H
       if (SHGetFolderPath(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, (TCHAR*)cfgfile) != S_OK)
-      cfgfile[0] = 0;
-      strncat(cfgfile, DEFAULT_CONFIG_FILE, sizeof(cfgfile));
+    	  cfgfile[0] = 0;
+      my_strncat(cfgfile, DEFAULT_CONFIG_FILE, sizeof(cfgfile));
 #else
       strncpy(cfgfile, DEFAULT_CONFIG_FILE, sizeof(cfgfile));
 #endif
@@ -398,8 +414,8 @@ bool VchangerConfig::Read(const char *cfile)
    /* If not specified in config file, set default work_dir to changer_name
     * in the Bacula work directory */
    if (!workdir_set) {
-      strncat(work_dir, DIR_DELIM, sizeof(work_dir));
-      strncat(work_dir, changer_name, sizeof(work_dir));
+      my_strncat(work_dir, DIR_DELIM, sizeof(work_dir));
+      my_strncat(work_dir, changer_name, sizeof(work_dir));
    }
    /* check that work dir exists and is writable. Create if needed. */
    if (!check_path_access(work_dir, R_OK | W_OK)) {
