@@ -3,14 +3,15 @@
 <HEAD>
 	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=windows-1252">
 	<TITLE></TITLE>
-	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.1  (Win32)">
+	<META NAME="GENERATOR" CONTENT="OpenOffice.org 3.2  (Win32)">
 	<META NAME="CREATED" CONTENT="20061109;11301500">
 	<META NAME="CHANGEDBY" CONTENT="Josh Fisher">
-	<META NAME="CHANGED" CONTENT="20091027;15252300">
+	<META NAME="CHANGED" CONTENT="20100514;15455000">
 	<META NAME="Info 1" CONTENT="">
 	<META NAME="Info 2" CONTENT="">
 	<META NAME="Info 3" CONTENT="">
 	<META NAME="Info 4" CONTENT="">
+	<META NAME="CHANGEDBY" CONTENT="Josh Fisher">
 	<STYLE TYPE="text/css">
 	<!--
 		@page { margin: 0.79in }
@@ -27,6 +28,7 @@
 		H3.cjk { font-family: "HG Mincho Light J" }
 		H3.ctl { font-family: "Arial Unicode MS" }
 		PRE { margin-left: 0.4in }
+		PRE.cjk { font-family: "NSimSun", monospace }
 		TD P.col1-western { margin-left: 0.4in; font-family: "Times New Roman", serif; font-size: 12pt }
 		TD P.col1-cjk { margin-left: 0.4in }
 		TD P.col1-ctl { margin-left: 0.4in }
@@ -52,6 +54,18 @@ at jaybus dot com&gt;</P>
 </P>
 <P CLASS="western" STYLE="margin-top: 0in; margin-bottom: 0in"><B>Revision
 History</B></P>
+<P CLASS="western" STYLE="margin-top: 0.1in; margin-bottom: 0in">Revision
+0.8.6 2010-05-14</P>
+<P CLASS="text-body-indent-3-western">Documented changes related to
+version 0.8.6 of the software.</P>
+<P CLASS="western" STYLE="margin-top: 0.1in; margin-bottom: 0in">Revision
+0.8.5 2010-02-05</P>
+<P CLASS="text-body-indent-3-western">Documented changes related to
+version 0.8.5 of the software.</P>
+<P CLASS="western" STYLE="margin-top: 0.1in; margin-bottom: 0in">Revision
+0.8.4 2009-12-02</P>
+<P CLASS="text-body-indent-3-western">Documented changes related to
+version 0.8.4 of the software.</P>
 <P CLASS="western" STYLE="margin-top: 0.1in; margin-bottom: 0in">Revision
 0.8.3 2009-10-26</P>
 <P CLASS="text-body-indent-3-western">Documented changes related to
@@ -135,7 +149,7 @@ Filesystem</A></FONT></FONT></P>
 <A HREF="#manual_mounting">Manually Mounting Drives</A></FONT></FONT></P>
 <P CLASS="text-body-indent-2-western"><FONT FACE="Arial"><FONT SIZE=3>7.3.
 <A HREF="#autofs">Using autofs to Mount Removable Drive Partitions</A></FONT></FONT></P>
-<P CLASS="text-body-indent-2-western" STYLE="margin-left: 1.19in"><FONT FACE="Arial"><FONT SIZE=3>7.3.1.
+<P CLASS="text-body-indent-2-western" STYLE="margin-left: 1.59in"><FONT FACE="Arial"><FONT SIZE=3>7.3.1.
 <A HREF="#with_autofs">Configuring vchanger For Use With autofs</A></FONT></FONT></P>
 <P CLASS="text-body-indent-2-western"><FONT FACE="Arial"><FONT SIZE=3>7.4.
 <A HREF="#mounting_win32">Mounting Removable Drives On Windows</A></FONT></FONT></P>
@@ -204,23 +218,22 @@ the functionality of <I>disk-changer</I> with the following features:</P>
 	<LI><P CLASS="western">C/C++ program allows versions for Microsoft
 	Windows in addition to Linux and other POSIX operating systems</P>
 	<LI><P CLASS="western">Allows a single autochanger to simultaneously
-	utilize multiple storage locations (directories/mounted filesystems)
-	for its virtual slots</P>
+	utilize multiple directories/mountpoints for its virtual slots,
+	emulating a multiple-magazine, multiple-drive autochanger.</P>
 	<LI><P CLASS="western">Cleanly handles the situation where a
 	removable disk drive, after having been previously unmounted with
 	one or more of its slots still &ldquo;loaded&rdquo; into a virtual
-	drive, is re-mounted</P>
+	drive, is later re-mounted</P>
 	<LI><P CLASS="western">Automatically generates unique volume
 	barcodes without an additional barcode definition file</P>
-	<LI><P CLASS="western">Uses the barcode volume label name as the
-	actual filename for a volume file</P>
+	<LI><P CLASS="western">Uses the barcode volume label as the actual
+	filename for a volume file</P>
 	<LI><P CLASS="western">Adds the concept of naming autochangers. When
 	using multiple autochangers, this can be used to assign &ldquo;magazines&rdquo;
 	(removable drives) to a particular autochanger and prevent other
 	autochangers from using them.</P>
 	<LI><P CLASS="western">Allows assigning a 'magazine' to an
-	autochanger by filesystem UUID when automounting with the autofs
-	daemon.</P>
+	autochanger by its filesystem UUID.</P>
 	<LI><P CLASS="western">Adds an extended API command, <I>initmag</I>,
 	to initialize a new magazine.</P>
 	<LI><P CLASS="western">Adds an extended API command, <I>listmags</I>,
@@ -236,7 +249,7 @@ method of utilizing removable drives as the backup media for a backup
 solution using vchanger with <A HREF="http://www.bacula.org/">Bacula</A>.</P>
 <H3 CLASS="western"><A NAME="copyright"></A>1.1 Copyright And License</H3>
 <P CLASS="western">This document, Vchanger<EM> HOWTO</EM>, is
-Copyright (c) 2008-2009 by <EM><SPAN STYLE="font-style: normal">Josh
+Copyright (c) 2008-2010 by <EM><SPAN STYLE="font-style: normal">Josh
 Fisher</SPAN></EM>. Permission is granted to copy, distribute and/or
 modify this document under the terms of the GNU Free Documentation
 License, Version 1.1 or any later version published by the Free
@@ -269,8 +282,9 @@ is a registered trademark of John Walker.</P>
 Microsoft Corporation in the United States and other countries.</FONT></P>
 <H3 CLASS="western"><A NAME="feedback"></A>1.4 Feedback</H3>
 <P CLASS="western"><A HREF="https://lists.sourceforge.net/lists/listinfo/vchanger-users">Vchanger
-Users e-mail list</A> should be used for feedback. Otherwise, contact
-information for the author is available in the source tarball.</P>
+Users e-mail list</A> hosted by Sourceforge should be used for
+feedback. Otherwise, contact information for the author is available
+in the source tarball.</P>
 <H3 CLASS="western"><A NAME="definitions"></A>2. Definitions</H3>
 <P CLASS="western"><I>Bacula</I> is an open source network backup
 solution. Much more information about Bacula is available at the
@@ -281,10 +295,14 @@ where a number of tapes are stored, and an individually addressable
 robotic device capable of physically moving tapes between the tape
 library and the tape drives. The tape library contains mechanical
 slots, each of which can hold one tape. In most cases, the slots are
-located in mechanical magazines that can be inserted into and removed
-from one or more magazine bays.</P>
+located in one or more mechanical magazines that can be inserted into
+and removed from one or more magazine bays.</P>
 <P CLASS="western">A <I>virtual autochanger</I> emulates a tape
-autochanger using disk storage, rather than tapes.</P>
+autochanger using disk storage, rather than tapes. Note that in the
+strictest sense, vchanger is not a tape library emulator, in that it
+does not implement a device driver with SCSI command interface.
+Rather it utilizes an API implemented by Bacula to accept commands
+from a Bacula Storage Daemon to load and unload drives, etc.</P>
 <P CLASS="western">A <I>magazine</I> is a mechanical tape storage
 device having a number of slots into which tapes are inserted. The
 tape library of many autochangers consists of one or more removable
@@ -300,17 +318,15 @@ system.</P>
 <H1 CLASS="western"><A NAME="overview"></A>3. Overview</H1>
 <P CLASS="western"><SPAN STYLE="font-style: normal">Bacula is already
 very proficient at creating backup volumes on disk storage devices.
-The <A HREF="http://www.bacula.org/3.0.x-manuals/en/concepts/concepts/Automated_Disk_Backup.html">Automated
-Disk Backup</A></SPAN> <SPAN STYLE="font-style: normal">section of
-the <A HREF="http://www.bacula.org/en/?page=documentation">Bacula
-User's Guide</A></SPAN> <SPAN STYLE="font-style: normal">describes
+The Automated Disk Backup section of Bacula's</SPAN> <A HREF="http://www.bacula.org/en/?page=documentation"><SPAN STYLE="font-style: normal">Main
+Reference Guide</SPAN></A> <SPAN STYLE="font-style: normal">describes
 the use of disk storage with Bacula in great detail. Therefore, in
-many cases, it is not necessary or useful to use disk-based
-autochanger emulation. When storing backup volumes on fixed disk,
-such as when using a disk-disk-tape backup method, it does not
-usually make sense to add the extra complexity. In fact, disk-based
-autochanger emulation only really makes sense when storing backup
-volumes on removable disk drives that can be hot swapped.</SPAN></P>
+many cases, it is not necessary or useful to use a disk-based virtual
+autochanger. When storing backup volumes on fixed disk, such as when
+using a disk-disk-tape backup method, it does not usually make sense
+to add the extra complexity. A disk-based virtual autochanger is most
+useful when storing backup volumes on removable disk drives that can
+be hot swapped.</SPAN></P>
 <P CLASS="western" STYLE="font-style: normal">A virtual autochanger
 emulates a traditional tape autochanger device, and so some
 differences between tape autochangers and disk-based virtual
@@ -337,7 +353,7 @@ autochangers are given below.</P>
 			slot in the tape library, (usually in a magazine), in which a tape
 			is held when not loaded into a tape drive. In a disk autochanger,
 			a slot is an index number that maps to a particular volume file on
-			a virtual magazine.</P>
+			a particular virtual magazine.</P>
 		</TD>
 	</TR>
 	<TR VALIGN=TOP>
@@ -361,15 +377,15 @@ autochangers are given below.</P>
 		<TD WIDTH=518>
 			<P CLASS="western">In a tape autochanger, a bay is they physical
 			location into which a magazine is inserted. In a disk autochanger,
-			a bay is an index into an array of the autochanger's
-			simultaneously mounted magazines.</P>
+			a bay is an index into an array of the autochanger's currently
+			mounted magazines.</P>
 		</TD>
 	</TR>
 </TABLE>
 <H1 CLASS="western"><A NAME="implementation"></A>4. Virtual
 Autochanger Implementation</H1>
 <P CLASS="western"><SPAN STYLE="font-style: normal">vchanger
-implements the <A HREF="http://www.bacula.org/3.0.x-manuals/en/concepts/concepts/Autochanger_Resource.html#SECTION0018130000000000000000">Bacula
+implements the <A HREF="http://www.bacula.org/5.0.x-manuals/en/main/main/Autochanger_Resource.html#SECTION0032130000000000000000">Bacula
 Autochanger Interface</A></SPAN> <SPAN STYLE="font-style: normal">API,
 which defines the following commands:</SPAN></P>
 <TABLE WIDTH=664 BORDER=0 CELLPADDING=0 CELLSPACING=0>
@@ -445,14 +461,13 @@ Autochanger Interface API:</P>
 	</TR>
 </TABLE>
 <P CLASS="western"><SPAN STYLE="font-style: normal">For autochanger
-devices, the <A HREF="http://www.bacula.org/3.0.x-manuals/en/install/install/Storage_Daemon_Configuratio.html">Bacula
-Storage Daemon</A></SPAN> <SPAN STYLE="font-style: normal">calls an
-external autochanger script or program to perform functions such as
-loading a tape into a drive, unloading a tape, etc. Bacula relies on
-the autochanger script or program to handle the details of
-manipulating the autochanger's robotic tape library mechanism.
-Vchanger is one such program, and is invoked by the Bacula Storage
-Daemon with 5 positional parameters defined as:</SPAN></P>
+devices, the Bacula Storage Daemon calls an external autochanger
+script or program to perform functions such as loading a tape into a
+drive, unloading a tape, etc. Bacula relies on the autochanger script
+or program to handle the details of manipulating the autochanger's
+robotic tape library mechanism. Vchanger is one such program, and is
+invoked by the Bacula Storage Daemon with 5 positional parameters
+defined as:</SPAN></P>
 <TABLE WIDTH=664 BORDER=0 CELLPADDING=0 CELLSPACING=0>
 	<COL WIDTH=132>
 	<COL WIDTH=532>
@@ -494,7 +509,7 @@ Daemon with 5 positional parameters defined as:</SPAN></P>
 		<TD WIDTH=532>
 			<P CLASS="western">Path given by the <I>Archive Device</I>
 			directive of the <I>Device</I> resource corresponding to the drive
-			number given in parameter 5 (not used by vchanger)</P>
+			number given in parameter 5 (ignored by vchanger)</P>
 		</TD>
 	</TR>
 	<TR VALIGN=TOP>
@@ -513,18 +528,20 @@ defined in its configuration file. By default, an autochanger's work
 directory is created as a subdirectory of the Bacula work directory
 (usually /var/lib/bacula) with the same name as the autochanger.
 Since vchanger will be called by the Bacula Storage Daemon, the
-autochanger's work directory <B>must have permissions set</B> to
-allow read/write access for the user/group that the Bacula Storage
-Daemon runs as.</P>
+autochanger's work directory <FONT SIZE=3 STYLE="font-size: 13pt"><B>must
+have permissions set</B></FONT> to allow read/write access for the
+user/group that the Bacula Storage Daemon runs as.</P>
 <P CLASS="western">An autochanger's work directory is where vchanger
 will create symlinks to the directories/mountpoints that are acting
 as virtual magazines. State information is also kept in the
 autochanger's work directory in files named 'stateN', where N is the
 virtual drive number. The stateN files keep track of the volume last
-loaded into drive N. Additionally, there is a file named 'nextmag'
-that keeps track of the next available magazine number and is only
-used when initializing a new magazine using the <I>initmag</I>
-extended API command.</P>
+loaded into drive N. State information for each of the autochanger's
+magazine bays are kept in files named 'bayN', where N is the bay
+number. Additionally, there is a file named 'nextmag' that keeps
+track of the next available magazine number and is only used when
+initializing a new magazine using the <I>initmag</I> extended API
+command.</P>
 <H3 CLASS="western"><A NAME="disk-changerDifferences"></A>4.1.
 Differences Between vchanger and disk-changer</H3>
 <P CLASS="western">The disk-changer script that comes with Bacula
@@ -541,15 +558,16 @@ the symlink pointing to the loaded volume file, vchanger creates the
 symlink pointing to the directory that contains the loaded volume
 file. The filename of the loaded volume is always &ldquo;driveN&rdquo;,
 where N is the virtual drive that the volume file is loaded into.
-Vchanger &ldquo;loads&rdquo; a volume file into a virtual drive by
+Vchanger &ldquo;loads&rdquo; a volume file into virtual drive N by
 creating a symlink to point to the magazine directory, then renaming
-the volume file for the selected slot to 'driveN'. An unload renames
-the driveN file back to it's original volume file name and deletes
-the symlink. One advantage of this method is that it allows vchanger
-to be built for versions of Windows prior to Vista/Server 2008 which
-do not implement file symlinks, but do implement directory symlinks.
-Another advantage is that any virtual drive can be loaded from any
-one of multiple virtual magazines.</P>
+the volume file for the selected slot to 'driveN' and storing the
+original volume name in a file named 'loadedN'. An unload renames the
+driveN file back to it's original volume file name, clears the
+loadedN file, and deletes the symlink. One advantage of this method
+is that it allows vchanger to be built for versions of Windows prior
+to Vista/Server 2008 which do not implement file symlinks, but do
+implement directory symlinks. Another advantage is that any virtual
+drive can be loaded from any one of multiple virtual magazines.</P>
 <H3 CLASS="western"><A NAME="virtual_magazines"></A>4.2. Virtual
 Magazines</H3>
 <P CLASS="western">A virtual autochanger magazine is a directory,
@@ -563,9 +581,8 @@ initialized with the <A HREF="#command_initmag"><I>initmag</I></A>
 command. Every magazine belonging to a particular autochanger must be
 assigned a unique magazine number. Together with a unique name for
 each autochanger, this forces automatically generated volume names to
-be unique to each vchanger magazine. This allows for the use of
-multiple simultaneous autochangers and autochangers with multiple
-virtual magazines simultaneously mounted.</P>
+be unique. This allows for the use of multiple simultaneous
+autochangers and autochangers with multiple magazine bays.</P>
 <P CLASS="western">In addition to the index file, every magazine
 contains a fixed number of volume files, one for each magazine slot
 number. The number of slots (and corresponding volume files) per
@@ -579,12 +596,12 @@ slot number.</P>
 <P CLASS="western">The volume filenames are also used as the
 &ldquo;barcode&rdquo; labels for the volumes, emulating the barcode
 reader functionality found in many tape autochangers. This allows
-Bacula's <A HREF="http://www.bacula.org/3.0.x-manuals/en/concepts/concepts/Autochanger_Resource.html#SECTION0018110000000000000000">barcode
-support</A> to automate the labeling of the autochanger's volumes.
-Bacula creates a backup volume on each of these volume files in much
-the same way that it creates a backup volume on a tape, including
-writing a Bacula volume label at the beginning of the volume file and
-writing sequential blocks of data following the volume label.</P>
+Bacula's barcode support to automate the labeling of the
+autochanger's volumes. Bacula creates a backup volume on each of
+these volume files in much the same way that it creates a backup
+volume on a tape, including writing a Bacula volume label at the
+beginning of the volume file and writing sequential blocks of data
+following the volume label.</P>
 <P CLASS="western">Additionally, a file named &ldquo;loadedN&rdquo;,
 where N is a virtual drive number, is created for each virtual drive.
 The loadedN files contain the filename of the volume file currently
@@ -598,11 +615,11 @@ autochanger in a working state as magazines are swapped in and out.</P>
 should be noted that a <I>load</I> command will fail if the magazine
 containing the volume file that Bacula wishes to be loaded is
 unavailable, as is the case when a removable drive has been detached
-from the system. As with a real (tape) autochangers, an <I>update
-slots</I> command must be issued in the <A HREF="http://www.bacula.org/3.0.x-manuals/en/console/console/index.html">Bacula
-console</A> whenever a magazine is attached or detached to keep
-Bacula in synch with the autochanger. Otherwise, Bacula will have no
-way to know which slots contain available volumes and which do not.</P>
+from the system. As with a real (tape) autochanger, an <I>update
+slots</I> command must be issued in the Bacula console whenever a
+magazine is attached or detached to keep Bacula in synch with the
+autochanger. Otherwise, Bacula will have no way to know which slots
+contain available volumes and which do not.</P>
 <H3 CLASS="western"><A NAME="assigning_magazines"></A>4.3. Assigning
 Magazines to an Autochanger</H3>
 <P CLASS="western">Magazines are assigned to an autochanger by
@@ -627,7 +644,10 @@ autochanger are examined in the order their corresponding <I>magazine</I>
 line appears in the configuration file. The first magazine that is
 found to be mounted is considered &ldquo;inserted&rdquo; in bay 1,
 the second mounted magazine is considered to be inserted in bay 2,
-etc. Unmounted or inaccessible magazines are ignored.</P>
+etc. Unmounted or inaccessible magazines are ignored. Once a magazine
+has been assigned to a bay, state information is kept in the
+autochanger's work directory, and magazines remain in their assigned
+bays until the magazine is physically detached from the system.</P>
 <P CLASS="western">A magazine may be specified either as a path to a
 directory or as the UUID of a filesystem partition. When specified as
 a directory path, the magazine is considered mounted if the directory
@@ -638,10 +658,10 @@ using removable (USB, Firewire, eSATA) drives that are assigned
 device nodes dynamically by the OS. When specified as a UUID,
 vchanger will query the operating system to determine the mountpoint
 path of the block device containing a filesystem with that UUID. Note
-that vchanger makes no attempt to mount a magazine's partition. It
-simply identifies the mountpoint of a magazine partition that is
-already mounted. <A HREF="#mounting">Section 7</A> describes methods
-of getting the magazine partitions mounted.</P>
+that vchanger makes no attempt to mount a magazine's partition, as it
+generally will not be run as root. It simply identifies the
+mountpoint of a magazine partition that is already mounted. <A HREF="#mounting">Section
+7</A> describes methods of getting the magazine partitions mounted.</P>
 <H3 CLASS="western"><A NAME="multi-magazine"></A>4.4. Multi-magazine
 Autochangers</H3>
 <P CLASS="western">Multiple magazine bays may be defined by
@@ -657,7 +677,9 @@ magazine bay that does not have a magazine inserted will fail, and
 subsequently cause the Bacula job to fail<SPAN STYLE="font-style: normal">.
 It is possible to run a multi-magazine autochanger without magazines
 in some of its magazine bays as long as Bacula is always kept
-informed of which slots contain available volumes.</SPAN></P>
+informed of which slots contain available volumes by issuing the
+'update slots' command from bconsole whenever magazines are attached
+or detached.</SPAN></P>
 <H3 CLASS="western"><A NAME="synch_bacula"></A>4.5. Keeping Bacula In
 Synch With an Autochanger</H3>
 <P CLASS="western"><SPAN STYLE="font-style: normal">Whenever a
@@ -679,13 +701,13 @@ autochanger.</SPAN></P>
 <P CLASS="western">On most POSIX systems, vchanger can be compiled
 and installed from source as follows.</P>
 <P CLASS="western">Unpack the gzip compressed tar archive.</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]$ tar -xzf vcahnger-0.8.3.tar.gz</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]$ tar -xzf vcahnger-0.8.3.tar.gz</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 Configure the build system and compile vchanger</P>
-<PRE>[]$ cd vchanger
+<PRE CLASS="western">[]$ cd vchanger
 []$ ./configure
 []$ make</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 As root, install the executable and documentation</P>
-<PRE>[]$ su root
+<PRE CLASS="western">[]$ su root
 []# make install-strip</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 This will install the vchanger executable in /usr/local/bin and the
 documentation in /usr/local/share/doc/vchanger.</P>
@@ -706,10 +728,10 @@ development tools installed, the Windows version can be built as
 follows:</P>
 <P CLASS="western">Unpack the gzip compressed tar archive in your
 home directory.</P>
-<PRE>[]$ cd ~
+<PRE CLASS="western">[]$ cd ~
 []$ tar -xzf /path/to/vcahnger-0.8.3.tar.gz</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 Configure the build system and cross-compile vchanger</P>
-<PRE>[]$ cd vchanger
+<PRE CLASS="western">[]$ cd vchanger
 []$ ./configure --host=i686-pc-mingw32 --enable-win32 \
 []$ --prefix=/home/your-username/vchanger/win32
 []$ make -k all
@@ -724,7 +746,7 @@ C:\MSYS\1.0\home\your-username, assuming a standard installation of
 MSYS. Unpack the vchanger source tarball in
 C:\MSYS\1.0\home\your-username, then start up a MSYS console window
 and perform the following.</P>
-<PRE>$ cd /home/your-username/vchanger
+<PRE CLASS="western">$ cd /home/your-username/vchanger
 $ ./configure --enable-win32 --prefix=/home/your-username/vchanger/win32
 $ make -k all
 $ make install-strip
@@ -746,32 +768,32 @@ Drives</H1>
 Drives For Linux</H3>
 <P CLASS="western">Preparing the removable drives for use on Linux is
 fairly straight forward. All that is needed is a filesystem partition
-on the removable drive. Most removable drives come with a FAT32
-filesystem installed. FAT32 limits the maximum Bacula volume size
-that may be used to 4 GB and does not provide for file level
+on the removable drive. Most removable drives come with a FAT32 or
+NTFS filesystem installed. FAT32 limits the maximum Bacula volume
+size that may be used to 4 GB and does not provide for file level
 security. Any appropriate filesystem supported by the OS may be used
 on the magazine partitions. If using USB drives and relatively small
 volume file sizes, then ext2 may be an appropriate file system, while
 for a 4 drive SATA drive bay with 4 TB of storage a XFS file system
-might be more appropriate. For the examples in this howto, the ext3
+might be more appropriate. For the examples in this howto, the ext4
 file system is used.</P>
 <H3 CLASS="western"><A NAME="partition"></A>6.1.1. Partitioning the
 Drive</H3>
-<P CLASS="western">Since most removable drives come with a FAT32 file
-system installed, the drive must be repartitioned in order to create
-an ext3 file system. To partition a new drive we need to know the
-device node that udev assigns to the drive. This can usually be
-determined from the output of dmesg a few seconds after the drive is
-attached. After determining the drive's device node, say for example
-/dev/sdc, use fdisk /dev/sdc (or some other partitioning tool) to
-create a single Linux partition as the drive's primary partition
-number 1.</P>
+<P CLASS="western">Since most removable drives come with a FAT32 or
+NTFS file system installed, the drive must be repartitioned in order
+to create an ext3 file system. To partition a new drive we need to
+know the device node that udev assigns to the drive. This can usually
+be determined from the output of dmesg a few seconds after the drive
+is attached. After determining the drive's device node, say for
+example /dev/sdc, use fdisk /dev/sdc (or some other partitioning
+tool) to create a single Linux partition as the drive's primary
+partition number 1.</P>
 <H3 CLASS="western"><A NAME="formatting"></A>6.1.2. Formatting the
 Partition Filesystem</H3>
 <P CLASS="western">Assuming the drive was assigned node /dev/sdc, the
 partition can now be formatted and labeled using:</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.08in">mke2fs -t ext3 -O large_file /dev/sdc1</PRE><P CLASS="western">
-This will create a new ext3 file system on the partition. Now unplug
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.08in">mke2fs -t ext4 -O large_file /dev/sdc1</PRE><P CLASS="western">
+This will create a new ext4 file system on the partition. Now unplug
 the drive, wait a few seconds, then plug it back in. After
 re-attaching the drive, the name of the symlink in /dev/disk/by-uuid
 pointing to the filesystem partition's device node, (/dev/sdc1 in the
@@ -782,19 +804,19 @@ can also be determined with the blkid command.</P>
 <H3 CLASS="western"><A NAME="mag_permissions"></A>6.1.3. Setting
 Permissions for the Partition Filesystem</H3>
 <P CLASS="western">The Bacula Storage Daemon does not usually run as
-root. Since vchanger will be invoked by the Storage Daemon and will
-run as the same user, permissions for the magazine's mounted
-filesystem must be set to allow write access to the user that the
-Storage Daemon runs as. This can be done by mounting the partition
-somewhere, using chown and chmod to set the appropriate permissions
-to allow write access for the user that the Storage Daemon runs as,
-and then unmounting.</P>
+root. Since vchanger will be invoked by the Storage Daemon, and so
+will run as the same user it does, permissions for the magazine's
+mounted filesystem must be set to allow write access to the user that
+the Storage Daemon runs as. This can be done by mounting the new
+partition somewhere, then using chown and chmod to set the
+appropriate permissions to allow write access for the user that the
+Storage Daemon runs as.</P>
 <H3 CLASS="western"><A NAME="preparing_win32"></A>6.2. Preparing
 Drives For Windows</H3>
 <P CLASS="western">Preparing the removable drives for use with
 Windows is simple. Since most removable drives come with a single
-large partition having a FAT32 file system, they can usually be used
-as shipped.</P>
+large partition having a FAT32 or NTFS file system, they can usually
+be used as shipped.</P>
 <P CLASS="western">It is possible to use the NTFS file system with
 removable drives. In fact, it is possible to use any file system for
 which there is a read/write installable file system driver, (such as
@@ -802,9 +824,10 @@ the <A HREF="http://www.fs-driver.org/index.html">ext2 Installable
 File System for Windows</A>). With NTFS, however, the default write
 caching may lead to file system corruption if the volume is not
 properly unmounted before detaching it, making it unsafe to simply
-unplug a removable drive containing a NTFS file system. For example
-purposes, the FAT32 file system will be used on Windows, despite its
-4 GB file size limit</P>
+unplug a removable drive containing a NTFS file system. If using the
+NTFS file system, ensure that write caching is turned off. For
+example purposes, the FAT32 file system will be used on Windows,
+despite its 4 GB file size limit</P>
 <H3 CLASS="western">6.2.1. Determining a Magazine Partition's UUID</H3>
 <P CLASS="western">On Windows, a filesystem UUID is known as a Volume
 Serial Number, (not to be confused with the manufacturer's hardware
@@ -812,7 +835,7 @@ serial number). Volume Serial Numbers, are 8 hex digits with a '-'
 between the first 4 and last 4 hex digits. This format differs from
 the UUIDs used by most POSIX systems, and is due to Windows storing
 the Volume Serial Number internally as a 32-bit binary number. This
-is not a problem, however, as Linux (and probably most other POSSIX
+is not a problem, however, as Linux (and probably most other POSIX
 systems) will happily use the Windows Volume Serial Number as the
 filesystem UUID, though it is shorter in length.</P>
 <P CLASS="western">The Volume Serial Number is what will be used as
@@ -862,7 +885,7 @@ Mounting Removable Drive Partitions</H3>
 <P CLASS="western">One way to handle mounting and unmounting of
 removable drive partitions is for the operator to manually mount the
 partitions when the removable drive is attached and manually unmount
-the partitions when the drive is detached. With device aliases in
+the partitions before they are detached. With device aliases in
 /dev/disk/by-uuid, this is a simple task, since the UUID of the
 magazine partition's filesystem is known. The mountpoint path name
 really doesn't matter when specifying manually mounted magazines by
@@ -870,8 +893,8 @@ UUID, as vchanger will discover the mountpoint automatically.</P>
 <P CLASS="western">It is also possible, when manually mounting
 magazine partitions, to use the mountpoint path in the magazine
 directive, rather than the UUID. When a magazine is specified by path
-(rather than UUID), vchanger assumes the magazine is mounted if the
-path exists.</P>
+(rather than by UUID), vchanger assumes the magazine is mounted if
+the path exists.</P>
 <H3 CLASS="western"><A NAME="autofs"></A>7.3. Using autofs To Mount
 Removable Drive Partitions</H3>
 <P CLASS="western">The <A HREF="http://www.autofs.org/">autofs</A>
@@ -880,7 +903,7 @@ on-the-fly as they are accessed. This eliminates the need for manual
 mounting of the magazine partitions and makes swapping magazines a
 nearly plug-n-play operation. An automount map file for use with
 vchanger is given below.</P>
-<PRE># /etc/auto.vchanger
+<PRE CLASS="western"># /etc/auto.vchanger
 *          -fstype=auto,rw,sync       :/dev/disk/by-uuid/&amp;
 # eof</PRE><P CLASS="western">
 Notice that 'sync' is specified in the flags that autofs will pass to
@@ -893,7 +916,7 @@ the sync option and being extra careful not to unplug removable
 drives until after autofs unmounts them.</P>
 <P CLASS="western">A line is then added to the /etc/auto.master file
 to tell autofs to pull in the new auto.vchanger configuration:</P>
-<PRE># /etc/auto.master
+<PRE CLASS="western"># /etc/auto.master
 # ...
 /mnt/vchanger      /etc/auto.vchanger        --timeout=30
 # eof</PRE><P CLASS="western">
@@ -908,8 +931,8 @@ accessed. The /etc/auto.vchanger map file specifies the device to be
 mounted as /dev/disk/by-uuid/&amp;. The '&amp;' is substituted for
 the key value. For example, when a program attempts to access
 /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35
-(or any files or directories below it) the autofs daemon will look at
-the auto.vchanger map for the key
+(or any files or directories below it), the autofs daemon will look
+at the auto.vchanger map for the key
 9667f83c-6150-44c7-b0d4-57564f174b35 and discover that it should
 mount /dev/disk/by-uuid/9667f83c-6150-44c7-b0d4-57564f174b35 at
 /mnt/vchanger/9667f83c-6150-44c7-b0d4-57564f174b35 with mount options
@@ -920,7 +943,7 @@ is working properly before continuing with setting up vchanger. If
 using the above autofs config files, when you plug in a USB drive
 with filesystem UUID of, say, 9667f83c-6150-44c7-b0d4-57564f174b35,
 you should be able to list its contents with the command</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in"># ls /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN></PRE><P CLASS="western" STYLE="font-style: normal">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in"># ls /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN></PRE><P CLASS="western" STYLE="font-style: normal">
 The ls command should trigger an automatic mount of the partition.
 Then after waiting for the timeout period, the drive should
 automatically be unmounted.</P>
@@ -1045,6 +1068,17 @@ configuration file:</P>
 	</TR>
 	<TR VALIGN=TOP>
 		<TD WIDTH=172>
+			<P CLASS="col1-western">log_level</P>
+		</TD>
+		<TD WIDTH=492>
+			<P CLASS="western">The level of detail to log to the logfile. The
+			value is a string, which may be 'LOG_EMERG', 'LOG_CRIT',
+			'LOG_ERR', etc. as defined for the syslog() system call. See man 2
+			syslog for possible values.<BR>Default: 'LOG_ERR'</P>
+		</TD>
+	</TR>
+	<TR VALIGN=TOP>
+		<TD WIDTH=172>
 			<P CLASS="col1-western">slots_per_magazine</P>
 		</TD>
 		<TD WIDTH=492>
@@ -1115,7 +1149,7 @@ Magazines</H1>
 <P CLASS="western">After a removable drive has been <A HREF="#preparing">prepared</A>,
 it must be initialized for use with vchanger. Initializing consists
 of creating a file named 'index', a volume file for each magazine
-slot, and a 'loaded' file for each virtual drive. The index file
+slot, and a loadedN file for each virtual drive N. The index file
 contains a single text string of the form &ldquo;changername_mmmm&rdquo;,
 where 'changername' is the name of the autochanger the magazine will
 be used with, and 'mmmm' is the 4-digit one-based magazine number
@@ -1134,7 +1168,7 @@ magazine slot where the volume is &ldquo;located&rdquo;.</P>
 <I>initmag</I>, that makes initializing new magazines easier. The
 following (invoked as root) initializes a new magazine for an
 autochanger with configuration file /etc/bacula/c1.conf:</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.08in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf initmag 1</PRE><P CLASS="western">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.08in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf initmag 1</PRE><P CLASS="western">
 This will assign the next available magazine number to the magazine
 in magazine bay 1. A file named 'nextmag' in the autochanger's work
 directory keeps track of the next available magazine number for the
@@ -1142,7 +1176,7 @@ autochanger.</P>
 <P CLASS="western">The magazine and it's files <B>must be writable</B>
 by the user the Bacula Storage Daemon runs as. In the example above,
 the -u and -g options set the owner and group of the magazine's files
-for a Bacula Storage Daemon that runs as user bacula.disk.</P>
+for a Bacula Storage Daemon that runs as uid=bacula and gid=disk.</P>
 <P CLASS="western">The <I>initmag</I> command optionally accepts the
 -m flag to manually specify the magazine number to assign to the
 magazine. The -m flag is useful for replacing a defective removable
@@ -1169,7 +1203,7 @@ example purposes, we will assume the Storage Daemon runs as user
 filesystem partitions by UUID, creating mountpoints under
 /mnt/vchanger as described in section <A HREF="#autofs">7.2</A>. We
 will use the following autochanger configuration file.</P>
-<PRE># /etc/bacula/c1.conf
+<PRE CLASS="western"># /etc/bacula/c1.conf
 changer_name = c1
 virtual_drives = 2
 slots_per_magazine = 3
@@ -1178,24 +1212,24 @@ automount_dir = /mnt/vchanger
 magazine = UUID:<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
 magazine = UUID:5039284a<SPAN STYLE="font-style: normal">-4312-57d1-92c4-354710032c79</SPAN>
 #eof</PRE><P CLASS="western">
-This defines a single-magazine autochanger using 3 slots per
-magazine, 2 virtual drives, 1 magazine bay, and automounting of its
-magazines. Two USB hard drives are assigned as valid magazines for
-this autochanger. Both drives have been prepared as described in
-<A HREF="#prepairing">section 6</A>, but neither has been
-initialized. The <I>automount_dir</I> directive informs vchanger that
-autofs is configured to automount the magazines at mountpoints in the
-directory /mnt/vchanger, and that it should attempt to cause autofs
-to mount the magazine partitions prior to querying the system for
-their mountpoints. With neither of the drives attached, list the
-magazine partition currently in use by invoking (as root):</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
+This defines a single-bay autochanger using 3 slots per magazine, 2
+virtual drives, 1 magazine bay, and automounting of its magazines.
+Two USB hard drives are assigned as valid magazines for this
+autochanger. Both drives have been prepared as described in <A HREF="#prepairing">section
+6</A>, but neither has been initialized. The <I>automount_dir</I>
+directive informs vchanger that autofs is configured to automount the
+magazines at mountpoints in the directory /mnt/vchanger, and that it
+should attempt to trigger autofs to mount the magazine partitions
+prior to querying the system for their mountpoints. With neither of
+the drives attached, list the magazine partition currently in use by
+invoking (as root):</P>
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
 1::-1:</PRE><P CLASS="western">
 The output from the <I>listmags</I> command shows that no magazine is
-&ldquo;in&rdquo; magazine bay 1, which is correct, since neither of
-the two USB drives are attached. The barcodes of the volumes in each
-of the autochanger's 3 slots can be viewed with:</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf list
+&ldquo;inserted&rdquo; in magazine bay 1, which is correct, since
+neither of the two USB drives are attached. The barcodes of the
+volumes in each of the autochanger's 3 slots can be viewed with:</P>
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf list
 1:
 2:
 3:</PRE><P CLASS="western">
@@ -1205,39 +1239,45 @@ no magazine (USB drive) attached. Now attach the USB drive containing
 the partition with filesystem UUID given by the first <I>magazine</I>
 line of the c1.conf file. First, make sure that the magazine, when
 mounted, is writable by user bacula.disk.</P>
-<PRE>[]# ls -la /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
+<PRE CLASS="western">[]# ls -la /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
 drwxrwx--- 3 bacula disk 4096 2009-09-17 14:53 .
 drwxr-xr-x 3 root   root    0 2009-09-17 14:53 ..</PRE><P CLASS="western">
-A <I>listmags</I> command will now show a mounted magazine:</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
+A <I>listmags</I> command will now show that a magazine is inserted
+in bay 1:</P>
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
 1::0:/mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN></PRE><P CLASS="western">
-The blank changer name field and magazine number of 0 show that the
-USB drive is attached and the magazine partition is mounted, but it
-has not been initialized and assigned to an autochanger. Initialize
-the magazine with:</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf initmag 1
+Now that the magazine is inserted in bay 1, the bay's state file in
+the work directory should show which magazine is inserted:</P>
+<PRE CLASS="western">[]# cat /var/lib/bacula/c1/bay1
+<SPAN STYLE="font-style: normal">UUID:9667f83c-6150-44c7-b0d4-57564f174b35</SPAN></PRE><P CLASS="western">
+The blank changer name field and magazine number of 0 from the above
+<I>listmags</I> command show that the USB drive is attached and the
+magazine partition is mounted, but it has not been initialized and
+assigned to an autochanger. Initialize the magazine with:</P>
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf initmag 1
 created magazine 1 in bay 1 [/mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>]</PRE><P CLASS="western">
 A <I>listmags</I> command will now show a mounted and initialized
 magazine:</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf listmags
 1:c1:1:/mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN></PRE><P CLASS="western">
-And now the <I>list</I> command should now show the barcodes of the
+And now the <I>list</I> command should show the barcodes of the
 volumes in the 3 slots:</P>
-<PRE>[]# vchanger -u bacula -g disk /etc/bacula/c1.conf list
+<PRE CLASS="western">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf list
 1:c1_0001_0001
 2:c1_0001_0002
 3:c1_0001_0003</PRE><P CLASS="western">
 Notice that the barcode labels show the volumes as being in slots
 1,2, and 3 of magazine number 1 belonging to autochanger &ldquo;c1&rdquo;.
 Now try to load the volume in slot 2 into virtual drive 0 with:</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf load 2 /var/lib/bacula/c1/0/drive0 0</PRE><P CLASS="western">
-This command should succeed and the contents of the <I>work_dir</I>
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf load 2 /var/lib/bacula/c1/0/drive0 0</PRE><P CLASS="western">
+This command should succeed, and the contents of the <I>work_dir</I>
 directory should be:</P>
-<PRE>[]# ls -l /var/lib/bacula/c1
+<PRE CLASS="western">[]# ls -l /var/lib/bacula/c1
 lrwxrwxrwx 1 bacula disk   15 Sep 16 00:39 0 -&gt; /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
+<SPAN STYLE="font-style: normal">-rw-rw-r-- 1 bacula disk   42 Sep 16 00:39 bay1</SPAN>
 -rw-rw---- 1 bacula disk    1 Sep 16 00:34 nextmag
--rw-rw---- 1 bacula disk   19 Sep 16 00:39 state0
--rw-rw---- 1 bacula disk   19 Sep 16 00:34 state1
+-rw-rw-r-- 1 bacula disk   19 Sep 16 00:39 state0
+-rw-rw-r-- 1 bacula disk   19 Sep 16 00:34 state1
 
 []# ls /var/lib/bacula/c1/0
 c1_0001_0001    c1_0001_0003      drive0
@@ -1251,17 +1291,18 @@ c1_0001_0002</PRE><P CLASS="western">
 The symlink /var/lib/bacula/c1/0 <SPAN STYLE="font-style: normal">pointing
 to the magazine partition's mountpoint</SPAN> was created, the volume
 file 'c1_0001_0002' on the magazine was renamed to 'drive0', and the
-files 'loaded0' on the magazine and 'state0' in the work directory
-contain the loaded volume's filename.</P>
+loaded volume file's filename was written to the files 'loaded0' on
+the magazine and 'state0' in the work directory.</P>
 <P CLASS="western">Now load drive 1 from slot 3.</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf load 3 /var/lib/bacula/c1/1/drive1 1</PRE><P CLASS="western">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">[]# vchanger -u bacula -g disk /etc/bacula/c1.conf load 3 /var/lib/bacula/c1/1/drive1 1</PRE><P CLASS="western">
 and the work_dir directory should look like:</P>
-<PRE>[]# ls -1 /var/lib/bacula/c1
+<PRE CLASS="western">[]# ls -1 /var/lib/bacula/c1
 lrwxrwxrwx 1 bacula disk   15 Sep 16 00:39 0 -&gt; /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
 lrwxrwxrwx 1 bacula disk   15 Sep 16 00:42 1 -&gt; /mnt/vchanger/<SPAN STYLE="font-style: normal">9667f83c-6150-44c7-b0d4-57564f174b35</SPAN>
+-rw-rw-r-- 1 bacula disk   42 Sep 16 00:39 bay1
 -rw-rw---- 1 bacula disk    1 Sep 16 00:34 nextmag
--rw-rw---- 1 bacula disk   19 Sep 16 00:39 state0
--rw-rw---- 1 bacula disk   19 Sep 16 00:42 state1
+-rw-rw-r-- 1 bacula disk   19 Sep 16 00:39 state0
+-rw-rw-r-- 1 bacula disk   19 Sep 16 00:42 state1
 
 []# ls -1 /var/lib/bacula/c1/0
 c1_0001_0001    drive0            drive1
@@ -1287,12 +1328,8 @@ its volumes will be named c1_0002_0001, c1_0002_0002, and
 c1_0002_0003.</P>
 <P CLASS="western">Note that because the <I>magazine_bays</I>
 directive has a value of 1 in the above example, the magazine
-considered &ldquo;inserted&rdquo; into magazine bay 1 is the first
-mounted magazine found. If both of the USB drives were attached, only
-the one identified by the first <I>magazine</I> line would be used.
-The assigned magazines (that are currently mounted) are &ldquo;inserted&rdquo;
-into bays in the order that their <I>magazine</I> lines appear in the
-configuration file.</P>
+considered &ldquo;inserted&rdquo; into magazine bay 1 is the last
+magazine that was successfully inserted.</P>
 <H1 CLASS="western"><A NAME="configuring_bacula"></A>11. Configuring
 Bacula To Use The Autochanger</H1>
 <P CLASS="western">The virtual autochanger must be defined in Bacula
@@ -1305,7 +1342,7 @@ Bacula Storage Daemon</H3>
 (bacula-sd), add an <I>Autochanger</I> resource and associated <I>Device</I>
 resource(es) to bacula-sd.conf. An example of an autochanger with 2
 virtual drives is:</P>
-<PRE># /etc/bacula/bacula-sd.conf
+<PRE CLASS="western"># /etc/bacula/bacula-sd.conf
 # ...
 #----  local virtual autochanger with USB drive &quot;magazines&quot;
 Autochanger {
@@ -1354,15 +1391,20 @@ in parameter 5.</P>
 set <I>Device Type</I> = File so that Bacula understands it is
 reading/writing a <I>File Storage</I> type volume. The <I>ArchiveDevice</I>
 value is the path of the file that Bacula will use as a backup
-volume. Notice that the <I>ArchiveDevice</I> path is specified using
-the symlink that the autochanger dynamically creates in its work
-directory.</P>
+volume. Notice that <I>ArchiveDevice</I> specifies the path to a file
+that Bacula will read/write as a Bacula volume. The path is specified
+using the symlink that vchanger creates dynamically in the
+autochanger's work directory. For drive 0, <I>/var/lib/bacula/c1/0</I>
+is the symlink pointing to the magazine mountpoint, and <I>drive0</I>
+is the filename of the volume file. Recall that for the <I>load</I>
+command, vchanger will rename the volume file being loaded to driveN,
+where N is the virtual drive number.</P>
 <H3 CLASS="western"><A NAME="dir_config"></A>11.2. Configuring the
 Bacula Director</H3>
 <P CLASS="western">The Bacula Director is configured to use the
 virtual autochanger as it would be configured for a traditional tape
 autochanger.</P>
-<PRE># /etc/bacula/bacula-dir.conf
+<PRE CLASS="western"># /etc/bacula/bacula-dir.conf
 # ...
 # Local USB drive virtual autochanger
 Storage {
@@ -1376,7 +1418,7 @@ Storage {
 # eof</PRE><H3 CLASS="western">
 <A NAME="bacula_interaction"></A>11.3. Bacula / vchanger Interaction</H3>
 <P CLASS="western">The Bacula Storage Daemon reads/writes to a volume
-file specified in by the <I>ArchiveDevice</I> directive in the <I>Device</I>
+file specified by the <I>ArchiveDevice</I> directive in the <I>Device</I>
 record. For a vchanger autochanger, <I>ArchiveDevice</I> for the
 <I>Device</I> records associated with the autochanger's virtual
 drives is specified as WORK_DIR/N/driveN, where N is the numerical
@@ -1445,9 +1487,10 @@ cause problems.
 <H3 CLASS="western">12.2. Inserting Magazines</H3>
 <P CLASS="western">To &ldquo;insert&rdquo; a magazine into a magazine
 bay of an autochanger, simply attach one of the removable drives
-containing a magazine partition assigned to the autochanger, then
-issue the <I>update slots</I> command in the Bacula console to keep
-Bacula informed of the currently available volumes in each of the
+containing a magazine partition assigned to the autochanger, mount
+the partition (if not being auto-mounted by autofs), then issue the
+<I>update slots</I> command in the Bacula console to keep Bacula
+informed of the currently available volumes in each of the
 autochanger's slots.</P>
 <H3 CLASS="western">12.3. Ejecting Magazines</H3>
 <P CLASS="western">To eject a magazine, first check the status of the
@@ -1463,16 +1506,29 @@ before simply pulling the plug.</P>
 informed of which autochanger slots contain available volumes.
 Otherwise, Bacula may attempt to load a volume that is not currently
 available, which will result in vchanger returning an error to Bacula
-that will cause the job to fail. If you will be immediately be
-inserting another removable drive to replace the one being ejected,
-then it is only necessary to issue the <I>update slots</I> command
-once after the replacement drive is inserted.</P>
+that will cause the job to fail. If you will immediately be inserting
+another removable drive to replace the one being ejected, then it is
+only necessary to issue the <I>update slots</I> command once after
+the replacement drive is inserted.</P>
+<P CLASS="western">Note that when selecting a volume from the pool
+being used for a backup job, Bacula will favor using the same volume
+that was last written to if that volume has status = <I>Append</I>.
+In addition to the <I>update slots</I> command, it is usually
+necessary to issue an <I>update volume=</I><SPAN STYLE="font-style: normal">
+command in bconsole and change the status to </SPAN><I>Used</I><SPAN STYLE="font-style: normal">
+for any volumes on the magazine that both have status = </SPAN><I>Append</I><SPAN STYLE="font-style: normal">
+and have been written to. Volumes with status = </SPAN><I>Append</I><SPAN STYLE="font-style: normal">
+that have not yet been written to will not affect volume selection.
+If this is not done, then Bacula will select the volume for the next
+job using that pool. Since it is no longer in the changer, Bacula
+will ask for it to be mounted again, and this is not likely what is
+wanted.</SPAN></P>
 <H3 CLASS="western">12.4. Changing Magazines</H3>
-<P CLASS="western">When Bacula requests a volume not on a magazine
-that is currently attached, it will be necessary to &ldquo;insert&rdquo;
+<P CLASS="western">When Bacula requests a volume that is not on a
+magazine that is currently attached, it will be necessary to &ldquo;insert&rdquo;
 the magazine containing the requested volume into the autochanger.
 Which magazine to insert will be easily discovered from the volume
-label name that is being asked for. As always, after swapping in a
+label name that Bacula is asking for. As always, after swapping in a
 different magazine drive, you must issue the <I>update slots</I>
 command in the Bacula console.</P>
 <H1 CLASS="western">13. Autochanger Example Configurations</H1>
@@ -1481,16 +1537,17 @@ drives and a maximum volume file size of 4,000,000,000 bytes. A
 smaller number of volume files could be used by increasing the
 maximum volume size, but the maximum volume size must not exceed the
 maximum file size allowed by the file system being used.</P>
-<H3 CLASS="western">13.1. Single-magazine Single-drive Autochanger</H3>
+<H3 CLASS="western">13.1. Single-bay, Single-drive Autochanger</H3>
 <P CLASS="western">This configuration is an example of using USB
 external drives as magazines. Only a single USB drive is attached at
-any one time. A single virtual drive means that only one volume file
-at a time can be read/written. When a magazine is initialized, its
-volumes are placed in the Scratch pool. Bacula will move volumes from
-the Scratch pool into the other pools when they are needed. When the
-volumes are purged, they will be moved back into the Scratch pool for
-later re-use.</P>
-<PRE># /etc/bacula/bacula-sd.conf
+any one time, and here we specify a single magazine=/mnt/c1 line,
+meaning we will be manually mounting the drive at /mnt/c1. A single
+virtual drive means that only one volume file at a time can be
+read/written. When a magazine is initialized, its volumes are placed
+in the Scratch pool. Bacula will move volumes from the Scratch pool
+into the other pools when they are needed. When a volume is purged,
+it will be moved back into the Scratch pool for later re-use.</P>
+<PRE CLASS="western"># /etc/bacula/bacula-sd.conf
 # ...
 #----  virtual autochanger using USB external drives
 Autochanger {
@@ -1554,13 +1611,14 @@ magazine = /mnt/c1
 13.2. Multi-magazine Multi-drive Autochanger</H3>
 <P CLASS="western">In this example, a SATA backplane with 4 hot swap
 drive bays is being used as a multi-magazine autochanger. The
-autochanger will have 240 slots, 60 slots per attached SATA drive
-with a maximum volume size of 8 GB. 8 SATA drives will be used, 4 at
-a time. Some clients will be backed up to pool 'group-A' and some
-will be backed up to pool 'group-B', so two virtual drives are
-defined allowing a group-A client and a group-B client to be backed
-up concurrently.</P>
-<PRE># /etc/bacula/bacula-sd.conf
+autochanger will have 200 slots, 50 slots per attached 1 TB SATA
+drive with a maximum volume size of 18 GB. 8 SATA drives (magazines)
+are assigned to this autochanger, though only 4 will be attached at
+any one time, and they are automunted by autofs. Some clients will be
+backed up to pool 'group-A' and some will be backed up to pool
+'group-B', so two virtual drives are defined, allowing a group-A
+client and a group-B client to be backed up concurrently.</P>
+<PRE CLASS="western"># /etc/bacula/bacula-sd.conf
 # ...
 #----  virtual autochanger using 4 drive SATA backplane
 Autochanger {
@@ -1591,13 +1649,45 @@ Device {
   ArchiveDevice = /var/bacula/c2/1/drive1
   RemovableMedia = no;
   RandomAccess = yes;
-}# ...
+}# &hellip;
+#eof
 
+# /etc/bacula/bacula-dir.conf
+# ...
+# Virtual autochanger using 4 drive SATA backplane
+Storage {
+  Name = c2
+  Address = sd-server-address
+  Password = &quot;secret_password&quot;
+  Device = sata-changer
+  Media Type = File
+  Autochanger = yes;
+}
+Pool {
+  Name = &ldquo;group-A&rdquo;
+  Pool Type = backup
+  Storage = c1
+  Maximum Volume Bytes = 18gb
+  Recycle Pool = Scratch
+}
+Pool {
+  Name = &ldquo;group-B&rdquo;
+  Pool Type = backup
+  Storage = c1
+  Maximum Volume Bytes = 18gb
+  Recycle Pool = Scratch
+}
+Pool {
+  Name = Scratch
+  Pool Type = backup
+}
+#...
+# eof
 
 # /etc/bacula/c2.conf
 # Configuration for vchanger autochanger c2
 changer_name = c2
-slots_per_magazine = 60
+slots_per_magazine = 50
 virtual_drives = 2
 automount_dir = /mnt/vchanger   # autofs is mounting magazine drives
 magazine_bays = 4
@@ -1691,7 +1781,7 @@ extended command that is not part of the <A HREF="http://www.bacula.org/3.0.x-ma
 Autochanger Interface</A></SPAN> <SPAN STYLE="font-weight: normal">API,
 and is used to initialize one of the magazines defined in the
 autochanger configuration file. The format of this command is</SPAN></P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">vchanger -u sd_user -g sd_group config_file initmag mag_bay [-m mag_number]</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">vchanger -u sd_user -g sd_group config_file initmag mag_bay [-m mag_number]</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 where:</P>
 <TABLE WIDTH=664 BORDER=0 CELLPADDING=0 CELLSPACING=0>
 	<COL WIDTH=131>
@@ -1770,7 +1860,7 @@ extended command that is not part of the <A HREF="http://www.bacula.org/3.0.x-ma
 Autochanger Interface</A></SPAN> <SPAN STYLE="font-weight: normal">API,
 and is used to list the autochanger's magazine bay contents. The
 format of this command is</SPAN></P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">vchanger -u sd_user -g sd_group config_file listmags</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">vchanger -u sd_user -g sd_group config_file listmags</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 where:</P>
 <TABLE WIDTH=664 BORDER=0 CELLPADDING=0 CELLSPACING=0>
 	<COL WIDTH=131>
@@ -1803,7 +1893,7 @@ where:</P>
 <P CLASS="western" STYLE="margin-top: 0.08in">The contents of each
 magazine bay are written to stdout, one line per bay. The format of
 an output line is:</P>
-<PRE STYLE="margin-top: 0.01in; margin-bottom: 0.2in">bay:name:mag:mountpoint</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
+<PRE CLASS="western" STYLE="margin-top: 0.01in; margin-bottom: 0.2in">bay:name:mag:mountpoint</PRE><P CLASS="western" STYLE="margin-top: 0.08in">
 where:</P>
 <TABLE WIDTH=664 BORDER=0 CELLPADDING=0 CELLSPACING=0>
 	<COL WIDTH=131>

@@ -1,4 +1,20 @@
- Release Notes for vchanger 0.8.5
+ Release Notes for vchanger 0.8.6
+
+ Release 0.8.6
+
+ When using the automount_dir directive, opendir() is now used rather than
+ stat(), to trigger automounts. For some combinations of Linux kernel and older
+ versions of autofs, stat() is not sufficient to trigger an automount.
+ 
+ Extensive logging was added to this version, along with a new configuration
+ directive to set the logging level. This should greatly help problem diagnosis.
+ 
+ State information for the magazine bays is now kept in the work directory
+ along with virtual drive state. In a multi-magazine changer, when a magazine
+ was unloaded from a bay, magazines in higher numbered bays were being shifted
+ down to appear loaded into a different bay than they were before the magazine
+ was unloaded. With this version, magazines will remain loaded in the same bay
+ until they are unloaded.
 
  Release 0.8.5
 

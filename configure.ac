@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([vchanger], [0.8.5], [jfisher@jaybus.com])
+AC_INIT([vchanger], [0.8.6], [jfisher@jaybus.com])
 AC_ARG_ENABLE(win32,[  --enable-win32     Build for win32],
  [case "${enableval}" in
   yes) win32=true ;;

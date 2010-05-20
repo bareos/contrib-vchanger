@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -45,20 +45,17 @@ class DriveState
 {
 public:
 	DriveState();
-	virtual ~DriveState();
 	int set(const VolumeLabel &vlabel);
 	int set(const VolumeLabel *vlabel);
 	int set(const char *vname);
-	int unset();
+	int clear();
 	int restore();
-	inline bool IsLoaded() { return is_set; }
+	bool empty() { return vol.empty(); }
 protected:
    int save();
 public:
 	VolumeLabel vol;
-	bool is_set;
 	int drive;
-	char statedir[PATH_MAX];
 };
 
 class MagazineState
@@ -68,10 +65,15 @@ public:
 	virtual ~MagazineState();
 	int set(const char *magname, const char *automount_dir = NULL);
 	void clear();
-	int ReadMagazineIndex(char *changer_name, size_t changer_name_sz, int &mag_num);
+	int restore();
+protected:
+	int ReadMagazineIndex();
+	int save();
 public:
+   int bay_ndx;
 	int mag_number;
 	char changer[256];
+	char mag_name[256];
 	char mountpoint[PATH_MAX];
 };
 

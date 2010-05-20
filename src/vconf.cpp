@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -30,6 +30,9 @@
 #endif
 #include "util.h"
 #include "vconf.h"
+#ifdef HAVE_SYSLOG_H
+#include <syslog.h>
+#endif
 #ifdef HAVE_WINDOWS_H
 #include <shlobj.h>
 #endif
@@ -37,10 +40,10 @@
 /*-------------------------------------------
  * Config file keywords
  *-------------------------------------------*/
-#define NUM_VCONF_KEYWORDS 9
+#define NUM_VCONF_KEYWORDS 10
 static const char vconf_keywords[NUM_VCONF_KEYWORDS][32] = { "CHANGER_NAME",
       "STATE_DIR", "WORK_DIR", "MAGAZINE", "LOGFILE", "VIRTUAL_DRIVES",
-      "SLOTS_PER_MAGAZINE", "MAGAZINE_BAYS", "AUTOMOUNT_DIR" };
+      "SLOTS_PER_MAGAZINE", "MAGAZINE_BAYS", "AUTOMOUNT_DIR", "LOG_LEVEL" };
 
 /*-------------------------------------------
  * Local function to work around oddball Win32 mkdir()
@@ -182,6 +185,7 @@ VchangerConfig::VchangerConfig()
    memset(logfile, 0, sizeof(logfile));
    memset(automount_dir, 0, sizeof(automount_dir));
    memset(magazine, 0, (MAX_MAGAZINES + 1) * sizeof(char*));
+   log_level = 0;
    known_magazines = 0;
    magazine_bays = 0;
    virtual_drives = 0;
@@ -236,6 +240,7 @@ void VchangerConfig::SetDefaults()
    slots = 0;
    strncpy(changer_name, DEFAULT_CHANGER_NAME, sizeof(changer_name));
    strncpy(logfile, DEFAULT_LOGFILE, sizeof(logfile));
+   log_level = DEFAULT_LOGLEVEL;
 }
 
 /*-------------------------------------------------
@@ -395,6 +400,16 @@ bool VchangerConfig::Read(const char *cfile)
          break;
       case 9: /* automount_dir */
          strncpy(automount_dir, val, sizeof(automount_dir));
+         break;
+      case 10:  /* log_level */
+         if (strncasecmp(val, "LOG_EMERG", 9) == 0) log_level = LOG_EMERG;
+         if (strncasecmp(val, "LOG_ALERT", 9) == 0) log_level = LOG_ALERT;
+         if (strncasecmp(val, "LOG_CRIT", 8) == 0) log_level = LOG_CRIT;
+         if (strncasecmp(val, "LOG_ERR", 7) == 0) log_level = LOG_ERR;
+         if (strncasecmp(val, "LOG_WARNING", 11) == 0) log_level = LOG_WARNING;
+         if (strncasecmp(val, "LOG_NOTICE", 10) == 0) log_level = LOG_NOTICE;
+         if (strncasecmp(val, "LOG_INFO", 8) == 0) log_level = LOG_INFO;
+         if (strncasecmp(val, "LOG_DEBUG", 9) == 0) log_level = LOG_DEBUG;
          break;
       default:
          print_stderr("Config error: unknown keyword found?\n");

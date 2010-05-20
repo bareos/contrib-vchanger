@@ -1,5 +1,15 @@
 vchanger ChangeLog
 
+0.8.6  (2010-05-13)
+  - Use opendir instead of stat to trigger automounts
+  - Add ability to configure logging level
+  - Add extensive logging output to enhance debugging
+  - Maintain persistent magazine bay state to prevent magazines
+    in multi-magazine changers from inadvertently being moved
+    when a lower numbered bay has its magazine detached.
+0.8.5  (2010-02-05)
+  - Fix esfsprogs link errors on some Linux distros (bug 2941290)
+  - Merge "safe strncat" patch
 0.8.4  (2009-12-02)
   - Ignore slot number passed to 'loaded' command (bug 2907225)
   - Fix libblkid linking for FreeBSD (bug 2872006)

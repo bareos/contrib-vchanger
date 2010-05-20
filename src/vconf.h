@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -29,6 +29,7 @@
 #define DEFAULT_MAGAZINE_BAYS 1
 #define DEFAULT_CHANGER_NAME "vchanger"
 #define DEFAULT_LOGFILE ""
+#define DEFAULT_LOGLEVEL 3
 #define MAX_MAGAZINE_BAYS 32
 #define MAX_DRIVES 16
 #define MAX_SLOTS 9999
@@ -46,11 +47,12 @@
 class VchangerConfig
 {
 public:
+   char *magazine[MAX_MAGAZINES + 1];
    char changer_name[128];
    char work_dir[PATH_MAX];
-   char *magazine[MAX_MAGAZINES + 1];
    char logfile[PATH_MAX];
    char automount_dir[PATH_MAX];
+   int log_level;
    int known_magazines;
    int magazine_bays;
    int virtual_drives;

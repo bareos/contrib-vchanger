@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -19,16 +19,15 @@
  *  write to:  The Free Software Foundation, Inc.,
  *             59 Temple Place - Suite 330,
  *             Boston,  MA  02111-1307, USA.
- * 
+ *
  *  Provides a class for logging messages to a file
-*/
+ */
 
 #include "vchanger.h"
 #include "loghandler.h"
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
-
 
 ///////////////////////////////////////////////////
 //  Class LogHandler
@@ -38,7 +37,7 @@ LogHandler::LogHandler()
 {
    use_syslog = false;
    must_close_logfile = false;
-   max_debug_level = LOG_WARNING;
+   max_debug_level = LOG_ERR;
    logfile = NULL;
 }
 
@@ -52,13 +51,11 @@ LogHandler::~LogHandler()
    }
 }
 
-
 #ifndef _SPLINT_
 /*-------------------------------------------------
  *  Method to open logging to a syslog facility
  *------------------------------------------------*/
-void LogHandler::OpenLog(int facility, const char *ident, int max_level,
-						int syslog_options)
+void LogHandler::OpenLog(int facility, const char *ident, int max_level, int syslog_options)
 {
    CloseLog();
    if (facility < LOG_DAEMON || facility > LOG_USER) {
@@ -73,7 +70,6 @@ void LogHandler::OpenLog(int facility, const char *ident, int max_level,
 }
 #endif
 
-
 /*-------------------------------------------------
  *  Method to open logging to a file
  *------------------------------------------------*/
@@ -86,9 +82,9 @@ void LogHandler::OpenLog(const char *fname, int max_level)
    max_debug_level = max_level;
    if (fname && strlen(fname)) {
       logfile = fopen(fname, "a");
+      if (logfile) must_close_logfile = true;
    }
 }
-
 
 /*-------------------------------------------------
  *  Method to open logging to an already opened file
@@ -103,7 +99,6 @@ void LogHandler::OpenLog(FILE *fslog, int max_level)
    logfile = fslog;
 }
 
-
 /*-------------------------------------------------
  *  Method to close the log object. Closes the logfile or
  *  syslog.
@@ -117,7 +112,7 @@ void LogHandler::CloseLog()
 #endif
    if (logfile) {
       if (must_close_logfile) {
-	 fclose(logfile);
+         fclose(logfile);
       }
       logfile = NULL;
    }
@@ -125,11 +120,10 @@ void LogHandler::CloseLog()
    use_syslog = false;
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_ERR level
  *------------------------------------------------*/
-void LogHandler::Error(const char *fmt, ... )
+void LogHandler::Error(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -137,11 +131,10 @@ void LogHandler::Error(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_CRIT level
  *------------------------------------------------*/
-void LogHandler::Critical(const char *fmt, ... )
+void LogHandler::Critical(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -149,11 +142,10 @@ void LogHandler::Critical(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_ALERT level
  *------------------------------------------------*/
-void LogHandler::Alert(const char *fmt, ... )
+void LogHandler::Alert(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -161,11 +153,10 @@ void LogHandler::Alert(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_WARNING level
  *------------------------------------------------*/
-void LogHandler::Warning(const char *fmt, ... )
+void LogHandler::Warning(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -173,11 +164,10 @@ void LogHandler::Warning(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_NOTICE level
  *------------------------------------------------*/
-void LogHandler::Notice(const char *fmt, ... )
+void LogHandler::Notice(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -185,11 +175,10 @@ void LogHandler::Notice(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Method to log message of LOG_INFO level
  *------------------------------------------------*/
-void LogHandler::Info(const char *fmt, ... )
+void LogHandler::Info(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
@@ -197,11 +186,10 @@ void LogHandler::Info(const char *fmt, ... )
    va_end(vl);
 }
 
-
 /*-------------------------------------------------
  *  Protected method to handle actual log i/o.
  *------------------------------------------------*/
-void LogHandler::WriteLog(int priority, const char *fmt, va_list &vl )
+void LogHandler::WriteLog(int priority, const char *fmt, va_list &vl)
 {
    size_t n;
    char dstr[256];
@@ -227,11 +215,10 @@ void LogHandler::WriteLog(int priority, const char *fmt, va_list &vl )
       ctime_r(&tcur, dstr);
       n = strlen(dstr);
       if (n) {
-	 dstr[n-1] = 0;
-	 fprintf(logfile, "%s ", dstr);
+         dstr[n - 1] = 0;
+         fprintf(logfile, "%s ", dstr);
       }
       vfprintf(logfile, fmt, vl);
-      if (!strlen(fmt) || fmt[strlen(fmt) - 1] != '\n')
-	 fprintf(logfile, "\n");
+      if (!strlen(fmt) || fmt[strlen(fmt) - 1] != '\n') fprintf(logfile, "\n");
    }
 }

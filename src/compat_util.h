@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -20,6 +20,9 @@
  *             59 Temple Place - Suite 330,
  *             Boston,  MA  02111-1307, USA.
 */
+
+#ifndef COMPAT_UTIL_H_
+#define COMPAT_UTIL_H_
 
 #include "config.h"
 
@@ -55,28 +58,40 @@ int w32errno(DWORD werr);
 #ifndef HAVE_SYSLOG_H
 /*  For systems without syslog, provide fake one */
 
-#define LOG_DAEMON  0
-#define LOG_ERR     1
+#define LOG_EMERG   0
+#define LOG_ALERT   1
 #define LOG_CRIT    2
-#define LOG_ALERT   3
+#define LOG_ERR     3
 #define LOG_WARNING 4
 #define LOG_NOTICE  5
 #define LOG_INFO    6
-#define LOG_LOCAL0  10
-#define LOG_LOCAL1  11
-#define LOG_LOCAL2  12
-#define LOG_LOCAL3  13
-#define LOG_LOCAL4  14
-#define LOG_LOCAL5  15
-#define LOG_LOCAL6  16
-#define LOG_LOCAL7  17
-#define LOG_LPR     20
-#define LOG_MAIL    21
-#define LOG_NEWS    22
-#define LOG_UUCP    23
-#define LOG_USER    24
-#define LOG_CONS    0
-#define LOG_PID     0
+#define LOG_DEBUG   7
+#define LOG_KERN    0
+#define LOG_USER    8
+#define LOG_MAIL    16
+#define LOG_DAEMON  24
+#define LOG_AUTH    32
+#define LOG_SYSLOG  40
+#define LOG_LPR     48
+#define LOG_NEWS    56
+#define LOG_UUCP    64
+#define LOG_CRON    72
+#define LOG_AUTHPRIV 80
+#define LOG_FTP     88
+#define LOG_LOCAL0  128
+#define LOG_LOCAL1  136
+#define LOG_LOCAL2  144
+#define LOG_LOCAL3  152
+#define LOG_LOCAL4  160
+#define LOG_LOCAL5  168
+#define LOG_LOCAL6  176
+#define LOG_LOCAL7  184
+#define LOG_PID     1
+#define LOG_CONS    2
+#define LOG_ODELAY  4
+#define LOG_NDELAY  8
+#define LOG_NOWAIT  16
+#define LOG_PERROR  32
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,3 +127,5 @@ ssize_t getline(char **lineptr, size_t *n, FILE *stream);
 }
 #endif
 #endif
+
+#endif  /* _COMPAT_UTIL_H */

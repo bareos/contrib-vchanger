@@ -2,7 +2,7 @@
 !include "FileFunc.nsh"
 !insertmacro DirState
 Name "vchanger"
-OutFile "win32_vchanger-0.8.4.exe"
+OutFile "win32_vchanger-0.8.6.exe"
 InstallDir "$PROGRAMFILES\vchanger\"
 RequestExecutionLevel admin
 InstallDirRegKey HKLM "Software\vchanger" "Install_Dir"

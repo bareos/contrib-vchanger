@@ -2,7 +2,7 @@
  *
  *  This file is part of the vchanger package
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -32,8 +32,8 @@
  *  Commands
  * ------------------------------------------------*/
 #define NUM_AUTOCHANGER_COMMANDS 7
-static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][32] = { "LIST",
-      "SLOTS", "LOAD", "UNLOAD", "LOADED", "INITMAG", "LISTMAGS" };
+static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][32] = { "LIST", "SLOTS", "LOAD",
+      "UNLOAD", "LOADED", "INITMAG", "LISTMAGS" };
 
 /*-------------------------------------------------
  *  Command line parameters struct
@@ -89,24 +89,22 @@ static void print_help(void)
       "\nOptions:\n"
       "    -u, --user=uid       user to run as (when invoked by root)\n"
       "    -g, --group=gid      group to run as (when invoked by root)\n"
-      "\nReport bugs to %s.\n", PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME,
-         PACKAGE_NAME, PACKAGE_NAME, PACKAGE_BUGREPORT);
+      "\nReport bugs to %s.\n", PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME,
+         PACKAGE_NAME, PACKAGE_BUGREPORT);
 }
 
 /*-------------------------------------------------
  *  Function to parse command line parameters
  *------------------------------------------------*/
-#define LONGONLYOPT_VERSION		0
-#define LONGONLYOPT_HELP		1
+#define LONGONLYOPT_VERSION   0
+#define LONGONLYOPT_HELP      1
 
 static int parse_cmdline(int argc, char *argv[])
 {
    int c, ndx = 0;
-   struct option options[] = {
-         { "version", no_argument, 0, LONGONLYOPT_VERSION }, { "help",
-               no_argument, 0, LONGONLYOPT_HELP }, { "user", required_argument,
-               0, 'u' }, { "group", required_argument, 0, 'g' }, { "magnum",
-               required_argument, 0, 'm' }, { 0, 0, 0, 0 } };
+   struct option options[] = { { "version", no_argument, 0, LONGONLYOPT_VERSION }, { "help",
+         no_argument, 0, LONGONLYOPT_HELP }, { "user", required_argument, 0, 'u' }, { "group",
+         required_argument, 0, 'g' }, { "magnum", required_argument, 0, 'm' }, { 0, 0, 0, 0 } };
 
    cmdl.print_version = false;
    cmdl.print_help = false;
@@ -122,26 +120,19 @@ static int parse_cmdline(int argc, char *argv[])
    /* process the command line */
    for (;;) {
       c = getopt_long(argc, argv, "u:g:m:", options, NULL);
-      if (c == -1)
-         break;
+      if (c == -1) break;
       ++ndx;
       switch (c) {
       case LONGONLYOPT_VERSION:
          cmdl.print_version = true;
          cmdl.print_help = false;
          return 0;
-
       case LONGONLYOPT_HELP:
          cmdl.print_version = false;
          cmdl.print_help = true;
          return 0;
-         char* BuildVolumeName(char *vname, size_t vname_sz, const char *chngr,
-               int magnum, int magslot);
-         int ParseVolumeName(const char *vname, char *chgr_name,
-               size_t chgr_name_sz, int &mag_num, int &mag_slot);
-
       case 'm':
-         cmdl.init_mag_num = (int32_t)strtol(optarg, NULL, 10);
+         cmdl.init_mag_num = (int32_t) strtol(optarg, NULL, 10);
          if (cmdl.init_mag_num == 0) {
             print_stderr("flag -m must specify a positive integer value\n");
             return -1;
@@ -178,9 +169,8 @@ static int parse_cmdline(int argc, char *argv[])
       return -1;
    }
    for (cmdl.command = 0; cmdl.command < NUM_AUTOCHANGER_COMMANDS; cmdl.command++) {
-      if (strlen(argv[ndx]) == strlen(autochanger_command[cmdl.command])
-            && strcasecmp(argv[ndx], autochanger_command[cmdl.command]) == 0)
-         break;
+      if (strlen(argv[ndx]) == strlen(autochanger_command[cmdl.command]) && strcasecmp(argv[ndx],
+            autochanger_command[cmdl.command]) == 0) break;
    }
    if (cmdl.command >= NUM_AUTOCHANGER_COMMANDS) {
       print_stderr("%s not a recognized command\n", argv[ndx]);
@@ -208,23 +198,22 @@ static int parse_cmdline(int argc, char *argv[])
    }
    /* Check for INITMAG command */
    if (cmdl.command == 5) {
-      cmdl.init_mag = (int32_t)strtol(argv[ndx], NULL, 10);
+      cmdl.init_mag = (int32_t) strtol(argv[ndx], NULL, 10);
       if (cmdl.init_mag < 1) {
          print_stderr("magazine bay must be a positive integer argument\n");
          return -1;
       }
    } else {
-      /* Get slot number */char* BuildVolumeName(char *vname, size_t vname_sz,
-            const char *chngr, int magnum, int magslot);
-      int ParseVolumeName(const char *vname, char *chgr_name,
-            size_t chgr_name_sz, int &mag_num, int &mag_slot);
+      /* Get slot number */char* BuildVolumeName(char *vname, size_t vname_sz, const char *chngr,
+            int magnum, int magslot);
+      int ParseVolumeName(const char *vname, char *chgr_name, size_t chgr_name_sz, int &mag_num,
+            int &mag_slot);
 
-      cmdl.slot = (int32_t)strtol(argv[ndx], NULL, 10);
+      cmdl.slot = (int32_t) strtol(argv[ndx], NULL, 10);
       ++ndx;
       /* Get archive device */
       if (ndx >= argc) {
-         if (cmdl.command < 2)
-            return 0;
+         if (cmdl.command < 2) return 0;
          print_stderr("missing parameter 4 (archive device)\n");
          return -1;
       }
@@ -232,12 +221,11 @@ static int parse_cmdline(int argc, char *argv[])
       ++ndx;
       /* Get drive index */
       if (ndx >= argc) {
-         if (cmdl.command < 2)
-            return 0;
+         if (cmdl.command < 2) return 0;
          print_stderr("missing parameter 5 (drive)\n");
          return -1;
       }
-      cmdl.drive = (int32_t)strtol(argv[ndx], NULL, 10);
+      cmdl.drive = (int32_t) strtol(argv[ndx], NULL, 10);
    }
    ++ndx;
    if (ndx < argc) {
@@ -253,11 +241,14 @@ static int parse_cmdline(int argc, char *argv[])
  * Prints a line on stdout for each of the autochanger's slots of the
  * form:
  *       s:barcode
- * where 's' is the one-based slot number and 'barcode' is the "barcode"
- * label of the volume in the slot. The volume in the slot is a file in
- * the magazine directory, and the barcode is the filename of that file.
- * If the filesystem containing the magazine directory is not mounted, then
- * the barcode will be blank for slots in that magazine.
+ * where 's' is the one-based virtual slot number and 'barcode' is the barcode
+ * label of the volume in the slot. The volume in the slot is a file on one
+ * of the changer's magazines. A magazine is a directory, which is usually the
+ * mountpoint of a filesystem partition. The changer has one or more "bays".
+ * Each bay may or may not have a magazine "loaded". The barcode is the filename
+ * of the volume file mapped to the virtual slot. If the bay in which the virtual
+ * slot is located has no magazine loaded, then the barcode will be blank for
+ * that slot.
  *------------------------------------------------*/
 static int do_list_cmd()
 {
@@ -278,7 +269,7 @@ static int do_list_cmd()
             print_stdout("%d:%s\n", slot_offset + n, lab.GetLabel(vlabel, sizeof(vlabel)));
          }
       } else {
-         /* list slot only for bays with no mounted magazine */
+         /* list only the slot for bays with no loaded magazine */
          for (n = 1; n <= changer.slots_per_mag; n++) {
             print_stdout("%d:\n", slot_offset + n);
          }
@@ -289,6 +280,7 @@ static int do_list_cmd()
 
 /*-------------------------------------------------
  *   Slots Command
+ * Prints the number of virtual slots the changer has
  *------------------------------------------------*/
 static int do_slots_cmd()
 {
@@ -298,13 +290,13 @@ static int do_slots_cmd()
 
 /*-------------------------------------------------
  *   Load Command
+ * Loads the volume file mapped to a virtual slot into a virtual drive
  *------------------------------------------------*/
 static int do_load_cmd()
 {
    char errmsg[4096];
    if (changer.LoadDrive(cmdl.drive, cmdl.slot)) {
       changer.GetLastError(errmsg, sizeof(errmsg));
-      vlog.Error("%s: Error! %s\n", changer.changer_name, errmsg);
       print_stderr("%s\n", errmsg);
       return -1;
    }
@@ -313,13 +305,13 @@ static int do_load_cmd()
 
 /*-------------------------------------------------
  *   Unload Command
+ * Unloads the volume in a virtual drive back into its virtual slot
  *------------------------------------------------*/
 static int do_unload_cmd()
 {
    char errmsg[4096];
    if (changer.UnloadDrive(cmdl.drive)) {
       changer.GetLastError(errmsg, sizeof(errmsg));
-      vlog.Error("%s: Error! %s\n", changer.changer_name, errmsg);
       print_stderr("%s\n", errmsg);
       return -1;
    }
@@ -328,38 +320,41 @@ static int do_unload_cmd()
 
 /*-------------------------------------------------
  *   Loaded Command
+ * Prints the virtual slot number of the volume file currently loaded
+ * into a virtual drive
  *------------------------------------------------*/
 static int do_loaded_cmd()
 {
    int32_t slot = changer.GetDriveSlot(cmdl.drive);
-   if (slot < 0)
-      slot = 0;
+   if (slot < 0) slot = 0;
    print_stdout("%d\n", slot);
    return 0;
 }
 
 /*-------------------------------------------------
  *   INITMAG - Initialize Magazine Command
+ * Initializes the magazine in bay 'bay' as magazine number 'magnum'
+ * for this changer. Creates index file and empty volume files.
  *------------------------------------------------*/
-static int do_magazine_init(int mag, int magnum)
+static int do_magazine_init(int bay, int magnum)
 {
+   int mag_num;
    char errmsg[4096];
-   if (magnum < 1)
-      magnum = -1;
-   int mag_num = changer.CreateMagazine(mag, magnum);
+   if (magnum < 1) magnum = -1;
+   mag_num = changer.CreateMagazine(bay, magnum);
    if (mag_num < 1) {
       changer.GetLastError(errmsg, sizeof(errmsg));
       print_stderr("%s\n", errmsg);
       return -1;
    }
-   print_stdout("created magazine %d in bay %d [%s]\n",
-         changer.magazine[mag].mag_number, mag,
-         changer.magazine[mag].mountpoint);
+   print_stdout("created magazine %d in bay %d [%s]\n", changer.magazine[bay].mag_number, bay,
+         changer.magazine[bay].mountpoint);
    return 0;
 }
 
 /*-------------------------------------------------
  *   LISTMAGS - List Magazines Command
+ * Prints a listing of the bays and the magazines they contain
  *------------------------------------------------*/
 static int do_list_magazines()
 {
@@ -372,6 +367,8 @@ static int do_list_magazines()
    }
    return 0;
 }
+
+
 
 /* -------------  Main  -------------------------*/
 
@@ -399,9 +396,8 @@ int main(int argc, char *argv[])
    /* Switch user when run as root */
    if (is_root_user()) {
       if (!become_another_user(cmdl.runas_user, cmdl.runas_group)) {
-         print_stderr(
-               "Failed to switch to user %s.%s. Refusing to run as root\n",
-               cmdl.runas_user, cmdl.runas_group);
+         print_stderr("Failed to switch to user %s.%s. Refusing to run as root\n", cmdl.runas_user,
+               cmdl.runas_group);
          return -1;
       }
    }
@@ -411,12 +407,12 @@ int main(int argc, char *argv[])
    }
    /* Setup logging */
    if (strlen(conf.logfile)) {
-      vlog.OpenLog(conf.logfile, LOG_INFO);
+      vlog.OpenLog(conf.logfile, conf.log_level);
    }
    /* Sanity check slot number for load command */
    if (cmdl.command == 2) {
       if ((cmdl.slot < 1) || (cmdl.slot > conf.slots)) {
-         vlog.Error("%s: Error! invalid slot %d", conf.changer_name, cmdl.slot);
+         vlog.Error("invalid slot number %d", cmdl.slot);
          print_stderr("invalid slot number %d\n", cmdl.slot);
          return 1;
       }
@@ -424,16 +420,14 @@ int main(int argc, char *argv[])
    /* Sanity check drive number for load, unload, and loaded commands */
    if (cmdl.command > 1 && cmdl.command < 5) {
       if (cmdl.drive < 0 || cmdl.drive >= conf.virtual_drives) {
-         vlog.Error("%s: Error! invalid drive %d", conf.changer_name,
-               cmdl.drive);
+         vlog.Error("invalid drive number %d", cmdl.drive);
          print_stderr("invalid drive number %d\n", cmdl.drive);
          return 1;
       }
    }
-   /* Init changer object */
+   /* Initialize changer object */
    if (changer.Initialize(conf)) {
       changer.GetLastError(errmsg, sizeof(errmsg));
-      vlog.Error("%s: %s", conf.changer_name, errmsg);
       print_stderr("%s\n", errmsg);
       return 1;
    }

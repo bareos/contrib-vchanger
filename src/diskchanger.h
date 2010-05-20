@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -36,16 +36,16 @@ public:
    int UnloadDrive(int drv);
    int GetDriveSlot(int drv);
    int GetSlotDrive(int slot);
-   int CreateMagazine(int mndx, int magnum = -1);
+   int CreateMagazine(int bay, int magnum = -1);
    int GetLastError(char *msg, size_t msg_size);
    void Unlock();
 protected:
-   bool Lock(long timeout = 1000);
+   bool Lock(long timeout = 10);
    void internalUnlock();
    void SetDefaults();
    int GetDriveSymlinkDir(int drv, char *lnkdir, size_t lnkdir_size);
-   int DoLoad(int magndx, int drv, VolumeLabel &lab);
-   int DoUnload(int magndx, int drive, VolumeLabel &lab);
+   int DoLoad(int bay, int drv, VolumeLabel &lab);
+   int DoUnload(int bay, int drive, VolumeLabel &lab);
    int SetDriveSymlink(int drv, const char *mountpoint);
    int RemoveDriveSymlink(int drv);
    int WriteMagazineIndex(const char *mountpt, int magnum);
@@ -55,7 +55,7 @@ protected:
    int WriteNextMagazineNumber(int magnum);
    int MagNum2MagBay(int mganum);
    int MagSlot2VirtualSlot(int magnum, int magslot);
-   int VirtualSlot2MagSlot(int slot, int &mag_ndx);
+   int VirtualSlot2MagSlot(int slot, int &bay);
    int VirtualSlot2VolumeLabel(int slot, VolumeLabel &lab);
    int VolumeLabel2VirtualSlot(const VolumeLabel &lab);
 public:

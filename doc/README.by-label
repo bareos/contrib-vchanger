@@ -2,7 +2,8 @@ README.by-label
 
 [DEPRECATED]  As of version 0.8.3, magazine partitions may be specified by
               filesystem UUID, allowing vchanger to query the OS to determine the
-              device node and mountpoint.
+              device node and mountpoint. This ability makes udev changes largely
+              unnecessary for most systems.
 
 Many Linux distros include udev to provide dynamic device nodes supporting
 hotpluging of devices. By default, udev creates a symlink in /dev/disk/by-label

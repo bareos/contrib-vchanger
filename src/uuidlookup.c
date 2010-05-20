@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2010 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -37,6 +37,10 @@
 #endif
 #ifdef HAVE_MNTENT_H
 #include <mntent.h>
+#else
+#include <sys/param.h>
+#include <sys/mount.h>
+#include <sys/ucred.h>
 #endif
 #endif
 #include "uuidlookup.h"
@@ -122,52 +126,43 @@ int GetMountpointFromUUID(char *mountp, size_t mountp_sz, const char *uuid_str)
 }
 
 #else
-
+#ifdef HAVE_MNTENT_H
 
 /*
- *  Locates disk partition containing file system with UUID given by 'uuid_str'.
- *  If found, and the filesystem is mounted, returns the first mountpoint found in
- *  'mountp'. On success, returns zero. On error, returns negative value :
+ *  Lookup mount point for device 'devname' and place in 'mountp'.
+ *  On success, returns zero. On error, returns negative value :
  *      -1    system error
  *      -2    parameter error
- *      -3    volume with given uuid not found
- *      -4    'mountp' buffer too small
+ *      -3    devname not mounted
  */
 static int GetDevMountpoint(char *mountp, size_t mountp_sz, const char *devname)
 {
    FILE *fs;
-#ifdef HAVE_MNTENT_H
 #ifdef HAVE_GETMNTENT_R
    char *buf;
    struct mntent ent;
 #else
    struct mntent *ent;
 #endif
-#endif
    int rc = -3;
 
    mountp[0] = '\0';
    if (!devname || !strlen(devname)) return -2;
 
-#ifdef HAVE_MNTENT_H
    fs = setmntent("/proc/mounts", "r");
    if (fs == NULL) {
       /* if system doesn't have /proc then try /etc/mtab */
       fs = setmntent("/etc/mtab", "r");
    }
-   if (fs == NULL) {
-      return -1; /* unknown non-POSIX system?? */
-   }
+   if (fs == NULL) return -1; /* unknown non-POSIX system?? */
+
 #ifdef HAVE_GETMNTENT_R
    buf = malloc(4096);
+   if (!buf) return -1;
    while (getmntent_r(fs, &ent, buf, 2048)) {
       if (strcasecmp(devname, ent.mnt_fsname) == 0) {
-         if (strlen(ent.mnt_dir) < mountp_sz) {
-            strncpy(mountp, ent.mnt_dir, mountp_sz);
-            rc = 0;
-         } else {
-            rc = -4;  /* mountp buffer too small */
-         }
+         strncpy(mountp, ent.mnt_dir, mountp_sz);
+         rc = 0;
          break;
       }
    }
@@ -177,46 +172,75 @@ static int GetDevMountpoint(char *mountp, size_t mountp_sz, const char *devname)
    while (ent)
    {
       if (strcasecmp(devname, ent->mnt_fsname) == 0) {
-         if (strlen(ent->mnt_dir) < mountp_sz) {
-            strncpy(mountp, ent->mnt_dir, mountp_sz);
-            rc = 0;
-         } else {
-            rc = -4;  /* mountp buffer too small */
-         }
+         strncpy(mountp, ent->mnt_dir, mountp_sz);
+         rc = 0;
          break;
       }
    }
 #endif
    endmntent(fs);
    return rc;
+}
 
 #else
-#endif
+
+/*
+ *  Lookup mount point for device 'devname' and place in 'mountp'.
+ *  On success, returns zero. On error, returns negative value :
+ *      -1    system error
+ *      -2    parameter error
+ *      -3    devname not mounted
+ */
+static int GetDevMountpoint(char *mountp, size_t mountp_sz, const char *devname)
+{
+   struct statfs *fs;
+   int mcount, fs_size, n, rc = -3;
+
+   mountp[0] = '\0';
+   if (!devname || !strlen(devname)) return -2;
+   mcount = getfsstat(NULL, 0, MNT_NOWAIT);
+   if (mcount < 1) return -1;
+   fs_size = (mcount + 1) * sizeof(struct statfs);
+   fs = (struct statfs*)malloc(fs_size);
+   if (!fs) return -1;
+   mcount = getfsstat(fs, fs_size, MNT_NOWAIT);
+   for (n = 0; n < mcount; n++)
+   {
+      if (strcasecmp(devname, fs[n].f_mntfromname) == 0) {
+         strncpy(mountp, fs[n].f_mnttoname, mountp_sz);
+         rc = 0;
+      }
+   }
+   free(fs);
+   return rc;
 }
+#endif
 
 /*
  *  Locates disk partition containing file system with UUID given by 'uuid_str'.
  *  If found, and the filesystem is mounted, returns the first mountpoint found in
- *  'mountp'. On success, returns zero. On error, returns negative value :
+ *  string 'mountp'. On success, returns zero. On error, returns negative value :
  *      -1    system error
  *      -2    parameter error
  *      -3    volume with given uuid not found
- *      -4    'mountp' buffer too small
+ *      -4    volume not mounted
  */
 int GetMountpointFromUUID(char *mountp, size_t mountp_sz, const char *uuid_str)
 {
-   char devname[256], *dev_name = NULL;
+   int rc;
+   char *dev_name;
+
+   if (!uuid_str || !strlen(uuid_str)) return -2;
 
    /* Get device with requested UUID from libblkid */
    dev_name = blkid_get_devname(NULL, "UUID", uuid_str);
-   if (!dev_name) {
-      return -3;  /* no device with UUID found */
-   }
-   strncpy(devname, dev_name, sizeof(devname));
-   free(dev_name);
+   if (!dev_name) return -3;  /* no device with UUID found */
 
-   /* find mountpoint for device */
-   return GetDevMountpoint(mountp, mountp_sz, devname);
+   /* find mount point for device */
+   rc = GetDevMountpoint(mountp, mountp_sz, dev_name);
+   free(dev_name);
+   return rc;
 }
+
 #endif
 
