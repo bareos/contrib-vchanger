@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2013 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -23,8 +23,6 @@
 
 #ifndef __UUIDLOOKUP_H_
 #define __UUIDLOOKUP_H_
-
-#include <sys/types.h>
 
 #ifdef __cplusplus
 extern "C" {

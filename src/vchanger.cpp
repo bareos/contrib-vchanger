@@ -2,7 +2,7 @@
  *
  *  This file is part of the vchanger package
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2014 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -21,36 +21,73 @@
  *             Boston,  MA  02111-1307, USA.
  */
 
-#include "vchanger.h"
-#include <locale.h>
+#include "config.h"
+#ifdef HAVE_STDIO_H
+#include <stdio.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_GETOPT_H
 #include <getopt.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
+#endif
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+
 #include "util.h"
-#include "vchanger_common.h"
+#include "compat_defs.h"
+#include "loghandler.h"
 #include "diskchanger.h"
+
+DiskChanger changer;
 
 /*-------------------------------------------------
  *  Commands
  * ------------------------------------------------*/
-#define NUM_AUTOCHANGER_COMMANDS 7
-static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][32] = { "LIST", "SLOTS", "LOAD",
-      "UNLOAD", "LOADED", "INITMAG", "LISTMAGS" };
+#define NUM_AUTOCHANGER_COMMANDS 9
+static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][32] = { "list", "slots", "load",
+      "unload", "loaded", "listall", "listmags", "createvols", "refresh" };
+#define CMD_LIST        0
+#define CMD_SLOTS       1
+#define CMD_LOAD        2
+#define CMD_UNLOAD      3
+#define CMD_LOADED      4
+#define CMD_LISTALL     5
+#define CMD_LISTMAGS    6
+#define CMD_CREATEVOLS  7
+#define CMD_REFRESH     8
 
 /*-------------------------------------------------
- *  Command line parameters struct
+ *  Command line parameters
  * ------------------------------------------------*/
 typedef struct _cmdparams_s
 {
    bool print_version;
    bool print_help;
-   int32_t command;
-   int32_t slot;
-   int32_t drive;
-   int32_t init_mag;
-   int32_t init_mag_num;
-   char runas_user[128];
-   char runas_group[128];
-   char config_file[PATH_MAX];
-   char archive_device[PATH_MAX];
+   int command;
+   int slot;
+   int drive;
+   int mag_bay;
+   int count;
+   tString label_prefix;
+   tString pool;
+   tString runas_user;
+   tString runas_group;
+   tString config_file;
+   tString archive_device;
 } CMDPARAMS;
 CMDPARAMS cmdl;
 
@@ -59,8 +96,8 @@ CMDPARAMS cmdl;
  *------------------------------------------------*/
 static void print_version(void)
 {
-   print_stdout("%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
-   print_stdout("\n%s.\n", "Copyright (c) 2008-2009 Josh Fisher");
+   fprintf(stdout, "%s version %s\n", PACKAGE_NAME, PACKAGE_VERSION);
+   fprintf(stdout, "\n%s.\n", COPYRIGHT_NOTICE);
 }
 
 /*-------------------------------------------------
@@ -68,29 +105,37 @@ static void print_version(void)
  *------------------------------------------------*/
 static void print_help(void)
 {
-   print_stdout("USAGE:\n\n"
-      "  %s config_file [options] command slot device drive\n"
+   fprintf(stdout, "vchanger version %s\n\n", PACKAGE_VERSION);
+   fprintf(stdout, "USAGE:\n\n"
+      "  vchanger [options] config_file command slot device drive\n"
       "    Perform Bacula Autochanger API command for virtual\n"
       "    changer defined by vchanger configuration file\n"
       "    'config_file' using 'slot', 'device', and 'drive'\n"
-      "  %s config_file [options] INITMAG mag_bay [-m|--magnum mag_number]\n"
-      "    Initialize new magazine in magazine bay 'mag_bay'. The list of\n"
-      "    assigned magazines is defined by one or more 'magazine'\n"
-      "    directives in the specified 'config_file'. The first mounted magazine\n"
-      "    from the list of assigned magazines is defined to be in bay 1, the\n"
-      "    second mounted magazine in bay 2, etc. If 'mag_num' is not given,\n"
-      "    then the next available magazine number is chosen automatically.\n"
-      "  %s config_file [options] LISTMAGS\n"
-      "    List all magazine bays and their current magazine mountpoints.\n"
-      "  %s --version\n"
-      "    print version\n"
-      "  %s --help\n"
+      "  vchanger [options] config_file LISTMAGS\n"
+      "    vchanger extension to list info on all defined magazines.\n"
+      "  vchanger [options] config_file CREATEVOLS mag_ndx count [start] [CREATEVOLS options]\n"
+      "    vchanger extension to create 'count' empty volume files on the magazine at"
+      "    index 'mag_ndx'. If specified, 'start' is the lowest integer to use when"
+      "    appending integers to the label prefix when generating volume names.\n"
+      "  vchanger [options] config_file REFRESH\n"
+      "  vchanger --version\n"
+      "    print version info\n"
+      "  vchanger --help\n"
       "    print help\n"
-      "\nOptions:\n"
+      "\nGeneral options:\n"
       "    -u, --user=uid       user to run as (when invoked by root)\n"
       "    -g, --group=gid      group to run as (when invoked by root)\n"
-      "\nReport bugs to %s.\n", PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME, PACKAGE_NAME,
-         PACKAGE_NAME, PACKAGE_BUGREPORT);
+      "\nCREATEVOLS command options:\n"
+      "    -l, --label=string   string to use as a prefix for determining the\n"
+      "                         barcode label of the volume files created. Labels\n"
+      "                         will be of the form 'string'_N, where N is an\n"
+      "                         integer. By default the prefix will be generated\n"
+      "                         using the changer name and the position of the\n"
+      "                         magazine's declaration in the configuration file.\n"
+      "    --pool=string        Overrides the default pool, defined in the vchanger\n"
+      "                         config file, that new volumes should be placed into\n"
+      "                         when labeling newly created volumes.\n"
+      "\nReport bugs to %s.\n", PACKAGE_BUGREPORT);
 }
 
 /*-------------------------------------------------
@@ -98,30 +143,37 @@ static void print_help(void)
  *------------------------------------------------*/
 #define LONGONLYOPT_VERSION   0
 #define LONGONLYOPT_HELP      1
+#define LONGONLYOPT_POOL      2
 
 static int parse_cmdline(int argc, char *argv[])
 {
    int c, ndx = 0;
-   struct option options[] = { { "version", no_argument, 0, LONGONLYOPT_VERSION }, { "help",
-         no_argument, 0, LONGONLYOPT_HELP }, { "user", required_argument, 0, 'u' }, { "group",
-         required_argument, 0, 'g' }, { "magnum", required_argument, 0, 'm' }, { 0, 0, 0, 0 } };
+   tString tmp;
+   struct option options[] = { { "version", 0, 0, LONGONLYOPT_VERSION },
+         { "help", 0, 0, LONGONLYOPT_HELP },
+         { "user", 1, 0, 'u' },
+         { "group", 1, 0, 'g' },
+         { "label", 1, 0, 'l' },
+         { "pool", 1, 0, LONGONLYOPT_POOL },
+         { 0, 0, 0, 0 } };
 
    cmdl.print_version = false;
    cmdl.print_help = false;
    cmdl.command = 0;
    cmdl.slot = 0;
    cmdl.drive = 0;
-   cmdl.init_mag = 0;
-   cmdl.init_mag_num = 0;
-   cmdl.runas_user[0] = 0;
-   cmdl.runas_group[0] = 0;
-   cmdl.config_file[0] = 0;
-   cmdl.archive_device[0] = 0;
+   cmdl.mag_bay = 0;
+   cmdl.count = 0;
+   cmdl.label_prefix.clear();
+   cmdl.pool.clear();
+   cmdl.runas_user.clear();
+   cmdl.runas_group.clear();
+   cmdl.config_file.clear();
+   cmdl.archive_device.clear();
    /* process the command line */
    for (;;) {
-      c = getopt_long(argc, argv, "u:g:m:", options, NULL);
+      c = getopt_long(argc ,argv, "u:g:l:", options, NULL);
       if (c == -1) break;
-      ++ndx;
       switch (c) {
       case LONGONLYOPT_VERSION:
          cmdl.print_version = true;
@@ -131,240 +183,337 @@ static int parse_cmdline(int argc, char *argv[])
          cmdl.print_version = false;
          cmdl.print_help = true;
          return 0;
-      case 'm':
-         cmdl.init_mag_num = (int32_t) strtol(optarg, NULL, 10);
-         if (cmdl.init_mag_num == 0) {
-            print_stderr("flag -m must specify a positive integer value\n");
-            return -1;
-         }
-         break;
       case 'u':
-         strncpy(cmdl.runas_user, optarg, sizeof(cmdl.runas_user));
+         cmdl.runas_user = optarg;
          break;
       case 'g':
-         strncpy(cmdl.runas_group, optarg, sizeof(cmdl.runas_group));
+         cmdl.runas_group = optarg;
+         break;
+      case 'l':
+         cmdl.label_prefix = optarg;
+         break;
+      case LONGONLYOPT_POOL:
+         cmdl.pool = optarg;
          break;
       default:
-         print_stderr("unknown option %s\n", optarg);
+         fprintf(stderr, "unknown option %s\n", optarg);
          return -1;
       }
    }
 
    /* process positional params */
    ndx = optind;
-   /* get config_file */
+   /* First parameter is the vchanger config file path */
    if (ndx >= argc) {
-      print_stderr("missing parameter 1 (config_file)\n");
+      fprintf(stderr, "missing parameter 1 (config_file)\n");
       return -1;
    }
-   strncpy(cmdl.config_file, argv[ndx], sizeof(cmdl.config_file));
-   if (!strlen(cmdl.config_file)) {
-      print_stderr("missing parameter 1 (config_file)\n");
-      return -1;
-   }
+   cmdl.config_file = argv[ndx];
+   /* Second parameter is the command */
    ++ndx;
-   /* get command */
    if (ndx >= argc) {
-      print_stderr("missing parameter 2 (command)\n");
+      fprintf(stderr, "missing parameter 2 (command)\n");
       return -1;
    }
+   tmp = argv[ndx];
+   tToLower(tStrip(tmp));
    for (cmdl.command = 0; cmdl.command < NUM_AUTOCHANGER_COMMANDS; cmdl.command++) {
-      if (strlen(argv[ndx]) == strlen(autochanger_command[cmdl.command]) && strcasecmp(argv[ndx],
-            autochanger_command[cmdl.command]) == 0) break;
+      if (tmp == autochanger_command[cmdl.command]) break;
    }
    if (cmdl.command >= NUM_AUTOCHANGER_COMMANDS) {
-      print_stderr("%s not a recognized command\n", argv[ndx]);
-      print_stderr("%s is config file\n", argv[ndx - 1]);
+      fprintf(stderr, "'%s' is not a recognized command", argv[ndx]);
       return -1;
    }
-   ++ndx;
-   /* Make sure only INITMAG command has -m flag */
-   if (cmdl.init_mag_num && cmdl.command != 5) {
-      print_stderr("flag -m not valid for this command\n");
+   /* Make sure only CREATEVOLS command has -l flag */
+   if (!cmdl.label_prefix.empty() && cmdl.command != CMD_CREATEVOLS) {
+      fprintf(stderr, "flag -l not valid for this command\n");
+      return -1;
+   }
+   /* Make sure only CREATEVOLS command has --pool flag */
+   if (!cmdl.pool.empty() && cmdl.command != CMD_CREATEVOLS) {
+      fprintf(stderr, "flag --pool not valid for this command\n");
       return -1;
    }
    /* Check param 3 exists */
-   if (ndx >= argc) {
-      if (cmdl.command < 2 || cmdl.command == 6) {
-         return 0; /* LIST, SLOTS, and LISTMAGS commands only have 2 params */
-      } else {
-         if (cmdl.command == 5) {
-            print_stderr("missing parameter 3 (magazine bay)\n");
-         } else {
-            print_stderr("missing parameter 3 (slot number)\n");
-         }
-      }
-      return -1;
-   }
-   /* Check for INITMAG command */
-   if (cmdl.command == 5) {
-      cmdl.init_mag = (int32_t) strtol(argv[ndx], NULL, 10);
-      if (cmdl.init_mag < 1) {
-         print_stderr("magazine bay must be a positive integer argument\n");
-         return -1;
-      }
-   } else {
-      /* Get slot number */char* BuildVolumeName(char *vname, size_t vname_sz, const char *chngr,
-            int magnum, int magslot);
-      int ParseVolumeName(const char *vname, char *chgr_name, size_t chgr_name_sz, int &mag_num,
-            int &mag_slot);
-
-      cmdl.slot = (int32_t) strtol(argv[ndx], NULL, 10);
-      ++ndx;
-      /* Get archive device */
-      if (ndx >= argc) {
-         if (cmdl.command < 2) return 0;
-         print_stderr("missing parameter 4 (archive device)\n");
-         return -1;
-      }
-      strncpy(cmdl.archive_device, argv[ndx], sizeof(cmdl.archive_device));
-      ++ndx;
-      /* Get drive index */
-      if (ndx >= argc) {
-         if (cmdl.command < 2) return 0;
-         print_stderr("missing parameter 5 (drive)\n");
-         return -1;
-      }
-      cmdl.drive = (int32_t) strtol(argv[ndx], NULL, 10);
-   }
    ++ndx;
-   if (ndx < argc) {
-      print_stderr("extraneous parameters\n");
+   if (ndx >= argc) {
+      /* Only 2 parameters given */
+      switch (cmdl.command) {
+      case CMD_LIST:
+      case CMD_LISTALL:
+      case CMD_SLOTS:
+      case CMD_LISTMAGS:
+      case CMD_REFRESH:
+         return 0;   /* OK, because these commands only need 2 parameters */
+      case CMD_CREATEVOLS:
+         fprintf(stderr, "missing parameter 3 (magazine index)\n");
+         break;
+      default:
+         fprintf(stderr, "missing parameter 3 (slot number)\n");
+         break;
+      }
       return -1;
    }
+   /* Process parameter 3 */
+   switch (cmdl.command) {
+   case CMD_LIST:
+   case CMD_LISTALL:
+   case CMD_SLOTS:
+   case CMD_LISTMAGS:
+   case CMD_REFRESH:
+      return 0;  /* These commands only need 2 params, so ignore extraneous */
+   case CMD_CREATEVOLS:
+      /* Param 3 for CREATEVOLS command is magazine index */
+      cmdl.mag_bay = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.mag_bay < 0) {
+         fprintf(stderr, "invalid magazine index in parameter 3\n");
+         return -1;
+      }
+      break;
+   case CMD_LOADED:
+      /* slot is ignored for LOADED command, so just set to 1 */
+      cmdl.slot = 1;
+      break;
+   default:
+      /* Param 3 for all other commands is the slot number */
+      cmdl.slot = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.slot < 1) {
+         fprintf(stderr, "invalid slot number in parameter 3\n");
+         return -1;
+      }
+      break;
+   }
+   /* Check param 4 exists */
+   ++ndx;
+   if (ndx >= argc) {
+      /* Only 3 parameters given */
+      switch (cmdl.command) {
+      case CMD_CREATEVOLS:
+         fprintf(stderr, "missing parameter 4 (count)\n");
+         break;
+      default:
+         fprintf(stderr, "missing parameter 4 (archive device)\n");
+         break;
+      }
+      return -1;
+   }
+   /* Process param 4 */
+   switch (cmdl.command) {
+   case CMD_CREATEVOLS:
+      /* Param 4 for CREATEVOLS command is volume count */
+      cmdl.count = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.count <= 0 ) {
+         fprintf(stderr, "invalid count in parameter 4\n");
+         return -1;
+      }
+      break;
+   default:
+      /* Param 4 for all other commands is the archive device path */
+      cmdl.archive_device = argv[ndx];
+      break;
+   }
+   /* Check param 5 exists */
+   ++ndx;
+   if (ndx >= argc) {
+      /* Only 4 parameters given */
+      switch (cmdl.command) {
+      case CMD_CREATEVOLS:
+         cmdl.slot = -1;
+         return 0; /* OK, because parameter 5 optional */
+      default:
+         fprintf(stderr, "missing parameter 5 (drive index)\n");
+         break;
+      }
+      return -1;
+   }
+   switch (cmdl.command) {
+   case CMD_CREATEVOLS:
+      cmdl.slot = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.slot < 0) cmdl.slot = -1;
+      break;
+   default:
+      /* Param 5 for all other commands is drive index number */
+      if (!isdigit(argv[ndx][0])) {
+         fprintf(stderr, "invalid drive index in parameter 5\n");
+         return -1;
+      }
+      cmdl.drive = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.drive < 0) {
+         fprintf(stderr, "invalid drive index in parameter 5\n");
+         return -1;
+      }
+      break;
+   }
 
+   /*  note that any extraneous parameters are simply ignored */
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   List Command
- * Prints a line on stdout for each of the autochanger's slots of the
- * form:
+ *   LIST Command
+ * Prints a line on stdout for each autochanger slot that contains a
+ * volume file, even if that volume is currently loaded in a drive.
+ * Output is of the form:
  *       s:barcode
  * where 's' is the one-based virtual slot number and 'barcode' is the barcode
  * label of the volume in the slot. The volume in the slot is a file on one
  * of the changer's magazines. A magazine is a directory, which is usually the
- * mountpoint of a filesystem partition. The changer has one or more "bays".
- * Each bay may or may not have a magazine "loaded". The barcode is the filename
- * of the volume file mapped to the virtual slot. If the bay in which the virtual
- * slot is located has no magazine loaded, then the barcode will be blank for
- * that slot.
+ * mountpoint of a filesystem partition. The changer has one or more
+ * magazines, each of which may or may not be attached. Each volume file on
+ * each magazine is mapped to a virtual slot. The barcode is the volume filename.
  *------------------------------------------------*/
 static int do_list_cmd()
 {
-   VolumeLabel lab;
-   int32_t n, mbay, slot_offset;
-   char vlabel[256];
+   int slot, num_slots = changer.NumSlots();
 
-   /* List magazines in the order specified in the config file */
-   for (mbay = 1; mbay <= changer.magazine_bays; mbay++) {
-      /* Slots 1 through slots_per_mag are on the first magazine listed
-       * in the config file, slots slots_per_mag+1 through 2*slots_per_mag
-       * are on magazine 2, etc.   */
-      slot_offset = (mbay - 1) * changer.slots_per_mag;
-      if (changer.magazine[mbay].mag_number > 0) {
-         /* list slot and barcode label for mounted magazines */
-         for (n = 1; n <= changer.slots_per_mag; n++) {
-            lab.set(changer.changer_name, changer.magazine[mbay].mag_number, n);
-            print_stdout("%d:%s\n", slot_offset + n, lab.GetLabel(vlabel, sizeof(vlabel)));
-         }
+   /* Print all slot numbers, adding volume labels for non-empty slots */
+   for (slot = 1; slot <= num_slots; slot++) {
+      if (changer.SlotEmpty(slot)) {
+         fprintf(stdout, "%d:\n", slot);
       } else {
-         /* list only the slot for bays with no loaded magazine */
-         for (n = 1; n <= changer.slots_per_mag; n++) {
-            print_stdout("%d:\n", slot_offset + n);
-         }
+         fprintf(stdout, "%d:%s\n", slot, changer.GetVolumeLabel(slot));
       }
    }
+   log.Info("  SUCCESS sent list to stdout");
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   Slots Command
+ *   SLOTS Command
  * Prints the number of virtual slots the changer has
  *------------------------------------------------*/
 static int do_slots_cmd()
 {
-   print_stdout("%d\n", changer.slots);
+   fprintf(stdout, "%d\n", changer.NumSlots());
+   log.Info("  SUCCESS reporting %d slots", changer.NumSlots());
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   Load Command
+ *   LOAD Command
  * Loads the volume file mapped to a virtual slot into a virtual drive
  *------------------------------------------------*/
 static int do_load_cmd()
 {
-   char errmsg[4096];
    if (changer.LoadDrive(cmdl.drive, cmdl.slot)) {
-      changer.GetLastError(errmsg, sizeof(errmsg));
-      print_stderr("%s\n", errmsg);
-      return -1;
+      fprintf(stderr, "%s\n", changer.GetErrorMsg());
+      log.Error("  ERROR loading slot %d into drive %d", cmdl.slot, cmdl.drive);
+      return 1;
    }
+   log.Info("  SUCCESS loading slot %d into drive %d", cmdl.slot, cmdl.drive);
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   Unload Command
- * Unloads the volume in a virtual drive back into its virtual slot
+ *   UNLOAD Command
+ * Unloads the volume in a virtual drive
  *------------------------------------------------*/
 static int do_unload_cmd()
 {
-   char errmsg[4096];
    if (changer.UnloadDrive(cmdl.drive)) {
-      changer.GetLastError(errmsg, sizeof(errmsg));
-      print_stderr("%s\n", errmsg);
-      return -1;
+      fprintf(stderr, "%s\n", changer.GetErrorMsg());
+      log.Error("  ERROR unloading slot %d from drive %d", cmdl.slot, cmdl.drive);
+      return 1;
    }
+   log.Info("  SUCCESS unloading slot %d from drive %d", cmdl.slot, cmdl.drive);
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   Loaded Command
+ *   LOADED Command
  * Prints the virtual slot number of the volume file currently loaded
- * into a virtual drive
+ * into a virtual drive, or zero if the drive is unloaded.
  *------------------------------------------------*/
 static int do_loaded_cmd()
 {
-   int32_t slot = changer.GetDriveSlot(cmdl.drive);
+   int slot = changer.GetDriveSlot(cmdl.drive);
    if (slot < 0) slot = 0;
-   print_stdout("%d\n", slot);
+   fprintf(stdout, "%d\n", slot);
+   log.Info("  SUCCESS reporting drive %d loaded from slot %d", cmdl.drive, slot);
    return 0;
 }
 
 /*-------------------------------------------------
- *   INITMAG - Initialize Magazine Command
- * Initializes the magazine in bay 'bay' as magazine number 'magnum'
- * for this changer. Creates index file and empty volume files.
+ *   LISTALL Command
+ * Prints state of drives (loaded or empty), followed by state
+ * of virtual slots (full or empty).
  *------------------------------------------------*/
-static int do_magazine_init(int bay, int magnum)
+static int do_list_all()
 {
-   int mag_num;
-   char errmsg[4096];
-   if (magnum < 1) magnum = -1;
-   mag_num = changer.CreateMagazine(bay, magnum);
-   if (mag_num < 1) {
-      changer.GetLastError(errmsg, sizeof(errmsg));
-      print_stderr("%s\n", errmsg);
-      return -1;
+   int n, s, num_slots = changer.NumSlots();
+
+   /* Print drive state info */
+   for (n = 0; n < changer.NumDrives(); n++) {
+      if (changer.DriveEmpty(n)) {
+         fprintf(stdout, "D:%d:E\n", n);
+      } else {
+         s = changer.GetDriveSlot(n);
+         fprintf(stdout, "D:%d:F:%d:%s\n", n, s,
+               changer.GetVolumeLabel(s));
+      }
    }
-   print_stdout("created magazine %d in bay %d [%s]\n", changer.magazine[bay].mag_number, bay,
-         changer.magazine[bay].mountpoint);
+   /* Print slot state info */
+   for (n = 1; n <= num_slots; n++) {
+      if (changer.SlotEmpty(n)) {
+         fprintf(stdout, "S:%d:E\n", n);
+      } else {
+         if (changer.GetSlotDrive(n) < 0)
+            fprintf(stdout, "S:%d:F:%s\n", n, changer.GetVolumeLabel(n));
+         else
+            fprintf(stdout, "S:%d:E\n", n);
+      }
+   }
+   log.Info("  SUCCESS sent listall to stdout");
    return 0;
 }
 
+
 /*-------------------------------------------------
- *   LISTMAGS - List Magazines Command
- * Prints a listing of the bays and the magazines they contain
+ *   LISTMAGS (List Magazines) Command
+ * Prints a listing of all magazine bays and info on the magazine
+ * (if any) each bay contains.
  *------------------------------------------------*/
 static int do_list_magazines()
 {
    int n;
-   char errmsg[4096];
 
-   for (n = 1; n <= changer.magazine_bays; n++) {
-      print_stdout("%d:%s:%d:%s\n", n, changer.magazine[n].changer, changer.magazine[n].mag_number,
-            changer.magazine[n].mountpoint);
+   if (changer.NumMagazines() == 0) {
+      fprintf(stdout, "No magazines are defined\n");
+      log.Info("  SUCCESS no magazines are defined");
+      return 0;
    }
+   for (n = 0; n < changer.NumMagazines(); n++) {
+      if (changer.MagazineEmpty(n)) {
+         fprintf(stdout, "%d:::\n", n);
+      } else {
+         fprintf(stdout, "%d:%d:%d:%s\n", n, changer.GetMagazineSlots(n),
+               changer.GetMagazineStartSlot(n), changer.GetMagazineMountpoint(n));
+      }
+   }
+   log.Info("  SUCCESS listing magazine info to stdout");
+   return 0;
+}
+
+/*-------------------------------------------------
+ *   CREATEVOLS (Create Volumes) Command
+ * Creates volume files on the specified magazine
+ *------------------------------------------------*/
+static int do_create_vols()
+{
+   /* Create new volume files on magazine */
+   if (changer.CreateVolumes(cmdl.mag_bay, cmdl.count, cmdl.slot, cmdl.label_prefix.c_str())) {
+      fprintf(stderr, "%s\n", changer.GetErrorMsg());
+      log.Error("  ERROR");
+      return -1;
+   }
+   fprintf(stdout, "Created %d volume files on magazine %d\n",
+           cmdl.count, cmdl.mag_bay);
+   log.Info("  SUCCESS");
    return 0;
 }
 
@@ -374,95 +523,137 @@ static int do_list_magazines()
 
 int main(int argc, char *argv[])
 {
+   int rc;
+   FILE *fs = NULL;
    int32_t error_code;
-   char errmsg[4096];
 
+#ifdef HAVE_LOCALE_H
    setlocale(LC_ALL, "");
+#endif
+
+   /* Log initially to stderr */
+   log.OpenLog(stderr, LOG_ERR);
    /* parse the command line */
    if ((error_code = parse_cmdline(argc, argv)) != 0) {
       print_help();
       return 1;
    }
-   /* Check for --version */
+   /* Check for --version flag */
    if (cmdl.print_version) {
       print_version();
       return 0;
    }
-   /* Check for --help */
+   /* Check for --help flag */
    if (cmdl.print_help) {
       print_help();
       return 0;
    }
-   /* Switch user when run as root */
-   if (is_root_user()) {
-      if (!become_another_user(cmdl.runas_user, cmdl.runas_group)) {
-         print_stderr("Failed to switch to user %s.%s. Refusing to run as root\n", cmdl.runas_user,
-               cmdl.runas_group);
-         return -1;
-      }
-   }
-   /* Read config file */
+   /* Read vchanger config file */
    if (!conf.Read(cmdl.config_file)) {
       return 1;
    }
-   /* Setup logging */
-   if (strlen(conf.logfile)) {
-      vlog.OpenLog(conf.logfile, conf.log_level);
+   /* User:group from cmdline overrides config file values */
+   if (cmdl.runas_user.size()) conf.user = cmdl.runas_user;
+   if (cmdl.runas_group.size()) conf.group = cmdl.runas_group;
+   /* Pool from cmdline overrides config file */
+   if (!cmdl.pool.empty()) conf.def_pool = cmdl.pool;
+   /* If root, try to run as configured user:group */
+   rc = drop_privs(conf.user.c_str(), conf.group.c_str());
+   if (rc) {
+      fprintf(stderr, "Error %d attempting to run as user '%s'", rc, conf.user.c_str());
+      return 1;
    }
-   /* Sanity check slot number for load command */
-   if (cmdl.command == 2) {
-      if ((cmdl.slot < 1) || (cmdl.slot > conf.slots)) {
-         vlog.Error("invalid slot number %d", cmdl.slot);
-         print_stderr("invalid slot number %d\n", cmdl.slot);
+   /* Start logging to log file specified in configuration file */
+   if (!conf.logfile.empty()) {
+      fs = fopen(conf.logfile.c_str(), "a");
+      if (fs == NULL) {
+         fprintf(stderr, "Error opening opening log file\n");
          return 1;
       }
+      log.OpenLog(fs, conf.log_level);
    }
-   /* Sanity check drive number for load, unload, and loaded commands */
-   if (cmdl.command > 1 && cmdl.command < 5) {
-      if (cmdl.drive < 0 || cmdl.drive >= conf.virtual_drives) {
-         vlog.Error("invalid drive number %d", cmdl.drive);
-         print_stderr("invalid drive number %d\n", cmdl.drive);
-         return 1;
-      }
+   /* Validate and commit configuration parameters */
+   if (!conf.Validate()) {
+      return 1;
    }
-   /* Initialize changer object */
-   if (changer.Initialize(conf)) {
-      changer.GetLastError(errmsg, sizeof(errmsg));
-      print_stderr("%s\n", errmsg);
+   /* Initialize changer. A lock file is created to serialize access
+    * to the changer. As a result, changer initialization may block
+    * for up to 30 seconds, and may fail if a timeout is reached */
+   if (changer.Initialize()) {
+      fprintf(stderr, "%s\n", changer.GetErrorMsg());
       return 1;
    }
 
    /* Perform command */
    switch (cmdl.command) {
-   case 0:
-      /* list */
+   case CMD_LIST:
+      log.Debug("==== preforming LIST command pid=%d", getpid());
       error_code = do_list_cmd();
       break;
-   case 1:
-      /* slots */
+   case CMD_SLOTS:
+      log.Debug("==== preforming SLOTS command pid=%d", getpid());
       error_code = do_slots_cmd();
       break;
-   case 2:
-      /* load */
+   case CMD_LOAD:
+      log.Debug("==== preforming LOAD command pid=%d", getpid());
       error_code = do_load_cmd();
       break;
-   case 3:
-      /* unload */
+   case CMD_UNLOAD:
+      log.Debug("==== preforming UNLOAD command pid=%d", getpid());
       error_code = do_unload_cmd();
       break;
-   case 4:
-      /* loaded */
+   case CMD_LOADED:
+      log.Debug("==== preforming LOADED command pid=%d", getpid());
       error_code = do_loaded_cmd();
       break;
-   case 5:
-      /* initmag  */
-      error_code = do_magazine_init(cmdl.init_mag, cmdl.init_mag_num);
+   case CMD_LISTALL:
+      log.Debug("==== preforming LISTALL command pid=%d", getpid());
+      error_code = do_list_all();
       break;
-   case 6:
-      /* listmags  */
+   case CMD_LISTMAGS:
+      log.Debug("==== preforming LISTMAGS command pid=%d", getpid());
       error_code = do_list_magazines();
+      break;
+   case CMD_CREATEVOLS:
+      log.Debug("==== preforming CREATEVOLS command pid=%d", getpid());
+      error_code = do_create_vols();
+      break;
+   case CMD_REFRESH:
+      log.Debug("==== preforming REFRESH command pid=%d", getpid());
+      error_code = 0;
+      log.Info("  SUCCESS pid=%d", getpid());
       break;
    }
 
-   return error_code;
+   /* If there was an error, then exit */
+   if (error_code) {
+      changer.Unlock();
+      return error_code;
+   }
+
+   /* If not updating Bacula, then exit */
+   if (conf.bconsole.empty()) {
+      /* Bacula interaction via bconsole is disabled, so log warnings */
+      if (changer.NeedsUpdate())
+         log.Error("WARNING! 'update slots' needed in bconsole pid=%d", getpid());
+      if (changer.NeedsLabel())
+         log.Error("WARNING! 'label barcodes' needed in bconsole pid=%d", getpid());
+      changer.Unlock();
+      return 0;
+   }
+
+   /* Update Bacula via bconsole */
+#ifndef HAVE_WINDOWS_H
+   changer.UpdateBacula();
+#else
+   /* Auto-update of bacula not working for Windows */
+   if (changer.NeedsUpdate())
+      log.Error("WARNING! 'update slots' needed in bconsole");
+   if (changer.NeedsLabel())
+      log.Error("WARNING! 'label barcodes' needed in bconsole");
+   return 0;
+#endif
+
+   changer.Unlock();
+   return 0;
 }

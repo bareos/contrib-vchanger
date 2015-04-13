@@ -1,0 +1,120 @@
+VCHANGER.CONF(5)
+================
+Josh Fisher <jfisher@jaybus.com>
+:doctype: manpage
+:man source:   vchanger.conf
+:man version:  1.0.0
+:man manual:   vchanger Manual
+
+NAME
+----
+vchanger.conf - configuration file for *vchanger(8)* 
+
+SYNOPSIS
+--------
+/etc/vchanger/vchanger.conf
+
+DESCRIPTION
+-----------
+*vchanger(8)* is passed the path to a configuration file as its first
+positional parameter. The file contains keyword-value pairs, specified
+by the free-form syntax 'keyword' = 'value'. Keywords are case-insensitive
+and embedded whitespace is ignored. For example, "LOGLEVEL" is equivalent
+to "Log Level". Values are case-sensitive and embedded whitespace is
+preserved, however leading and trailing whitespace is ignored. Values
+may be one of the following types:
+
+	BOOLEAN::
+		The  case insensitive strings "true", "yes", and "1" are accepted
+		as a true value, and "false", "no", and "0" as a false value.
+	INTEGER::
+		A numeric integer value
+	PATH::
+		A filesystem path. If the path does not begin with a ''/'' character,
+		then the path is considered a relative path. The directory to
+		which the path is relative is described for the relevant keyword
+		in the *CONFIGURATION SETTINGS* section.
+	STRING::
+		A text string. The string may be enclosed in double quotes. A
+		quoted  string  may  also  contain escape sequences. An escape
+		sequence begins with the back slash character `\'. Valid escape
+		sequences are \a, \b, \n, \r, \t, \v, \\, and \", and are
+		interpreted as in the C language.
+		
+CONFIGURATION SETTINGS
+----------------------
+*bconsole* = 'PATH'::
+	Specifies the path to the bconsole utility used to interface with
+	the Bacula console. If given as a relative path, standard shell
+	path search semantics apply. Specifying the empty string "" disables
+	the sending of commands to Bacula. The default is "bconsole".
+
+*bconsole config* = 'PATH'::
+	Specifies the path to the bconsole configuration file to use when
+	invoking bconsole. The path is passed to bconsole using its -c
+	flag. If the empty string "" is specified, then bconsole is invoked
+	without the -c flag. The default is "".
+	
+*Default Pool* = 'STRING'::
+	Specifies the name of the pool into which newly created volumes
+	should be placed when labeling the new volumes via bconsole.
+	The default is "Scratch".
+
+*Group* = 'STRING'::
+	Specifies the group that *vchanger(8)* should run as when invoked
+	by the root user. The default -s "tape".
+
+*Logfile* = 'PATH'::
+	Specifies the path to the vchanger logfile. If a relative path is
+	specified, then it is relative to the directory defined by the
+	*Work Dir* keyword. The default is a file name that is the string
+	".conf" appended to the value of the 'Storage Resource' keyword in
+	the 'Work Dir' directory.
+
+*Log Level* = 'INTEGER'::
+	Specifies the amount of logging desired. The value is an integer
+	between 0 and 7, inclusive, corresponding to the LOG_EMERG through
+	LOG_DEBUG log levels defined in *syslog(3)*.
+
+*Magazine* = ('PATH' or 'STRING')::
+	Specifies a directory or file system that contains volume files that
+	the changer specified by the *Storage Resource* keyword may use. this
+	keyword may appear more than once in the configuration file in order
+	to specify multiple magazines. Mounted file systems may be specified
+	by prepending the string "UUID:" (case insensitive) to the UUID of
+	the file system. Otherwise, the value specifies the path to a
+	directory.
+
+*Storage Resource* = 'STRING'::
+	Specifies the name of the Storage resource, defined in the Bacula
+	Director daemon''s configuration file (bacula-dir.conf), that is
+	associated with this changer. The default is "vchanger".
+
+*User* = 'STRING'::
+	Specifies the user that *vchanger(8)* should run as when invoked
+	by the root user. The default is "bacula".
+
+*Work Dir* = 'PATH'::
+	Specifies the path to the work directory *vchanger(8)* will use for
+	this changer. The default is a sub-directory of /var/spool/vchanger
+	named as the value of the *Storage Resource* keyword.
+	
+NOTES
+-----
+See the vchangerHowto.html file included in the doc directory of the
+source distribution for more detailed documentation.
+
+
+SEE ALSO
+--------
+*vchanger(8)*
+
+
+COPYRIGHT
+---------
+Copyright 2006-2015 Josh Fisher
+
+This is free software;
+See the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.

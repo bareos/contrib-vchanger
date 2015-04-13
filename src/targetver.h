@@ -7,14 +7,18 @@
  * Modify the following defines if you have to target a platform prior to the ones specified below.
  * Refer to MSDN for the latest info on corresponding values for different platforms.
  */
+#ifndef _TARGETVER_H_
+#define _TARGETVER_H_ 1
 #ifdef HAVE_WINDOWS_H
 #ifndef WINVER
-#define WINVER 0x0502
+#define WINVER 0x0600
 #endif
 #ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x0502
+#define _WIN32_WINNT 0x0600
 #endif
 #ifndef _WIN32_IE
-#define _WIN32_IE 0x0600
+#define _WIN32_IE 0x0700
+#endif
+#define _POSIX 1
 #endif
 #endif

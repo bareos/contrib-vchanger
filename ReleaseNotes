@@ -1,40 +1,176 @@
- Release Notes for vchanger 0.8.6
+ Release Notes for vchanger 1.0.0                  2015-04-06
+
+ Release 1.0.0
+
+ This is a major release adding several features and a change in the  
+ structure of magazines and the way volume files are "loaded" into  
+ virtual drives. These changes allow for an unlimited and variable 
+ number  of volume files on each magazine, and allow adding and deleting  
+ volumes to/from magazines, as well as moving volume files from one  
+ magazine to another. Virtual drives are now symlinks dynamically 
+ created  by the LOAD command. An unlimited number of virtual drives per 
+ autochanger  is supported without requiring a vchanger configuration 
+ change. The  number of virtual drives used is determined solely by the 
+ Device resources  defined in bacula-sd.conf.
+ 
+ Also, vchanger will now automatically issue 'update slots' and
+ 'label barcodes' commands to Bacula via bconsole when it detects a
+ change in the availability of any of its defined magazines or when
+ volume files are created with the CREATEVOLS command. Together with
+ an automounting mechanism, this makes the attachment and detachment
+ of removable drives a plug-n-play operation.
+ 
+ To aid in using removable drives on systems having udev, vchanger now
+ includes a udev rules generator and helper scripts to enable the
+ automatic mounting of magazine filesystems triggered by udev hotplug
+ events. The advantage to using this automounting method, as opposed to
+ autofs or window manager automounters using dbus, etc., is that these
+ scripts will invoke vchanger with a new REFRESH command that will issue
+ an 'update slots' command via bconsole whenever removable drives
+ are attached or detached.
+ 
+ Change Summary:
+ 
+ The concept of a 'magazine' has changed. A magazine remains a 
+ directory,   usually the mountpoint of a filesystem, however no metadata 
+ files are  now  stored on the magazines and volume files are not renamed 
+ when loading  and  unloading virtual drives. There is now no requirement 
+ that all  magazines  have the same number of volumes, and volume files 
+ may have any  filename.  New volume files can be created on a magazine 
+ at any time. A  new extended  interface command, CREATEVOLS, has been 
+ implemented for this  purpose. A  magazine is now simply a filesystem 
+ (or directory) containing  some  variable number of volume files. Any 
+ directory containing volume  files  can be used as a magazine in 
+ vchanger, including for example  volumes  created using Bacula's 
+ built-in disk storage handling. Volume files may  be deleted from 
+ magazines or moved between magazines. The only caveat is  that the 
+ volume's Media Type must match that of the autochanger's  Storage 
+ resource.
+
+ Virtual drives are now simply a symlink in the autochanger's work 
+ directory. The  drive number is the name of the symlink. For example,
+ if the autochanger's  work directory is /var/spool/vchanger/changer1,
+ then virtual drive 0 is a  symlink at the path 
+ /var/spool/vchanger/changer1/0. The symlink's path is  then specified as 
+ the Archive Device in the Device resource defined in  bacula-sd.conf for 
+ the autochanger's drive 0. Vchanger implements the LOAD  command by 
+ creating this symlink pointing at the volume file mapped to the  slot 
+ requested to be loaded. A subsequent UNLOAD command deletes the  
+ symlink. In previous versions, a LOAD created a symlink pointing to the  
+ mountpoint of the magazine and then renamed the volume file on the  
+ magazine to 'drive0', 'drive1', etc. This was because the original 
+ design  criteria, (dating to before the release of Bacula 2.0.0), 
+ required that vchanger run on Windows Server 2003, which did not have 
+ the capability of file-level symlinks. However, file-level symlinks is 
+ a much more robust method, handling any "out of space" conditions in a 
+ clean, expected way. For that reason, use of vchanger on versions of 
+ Windows without file-level symlinks is no longer supported.
+ 
+ An autochanger's magazines are assigned in its vchanger configuration
+ file. An unlimited number of magazines is supported and the storage space used
+ by an autochanger can be scaled at any time by simply adding additional
+ magazines and creating volume files on them. Expansion of the storage
+ space does not require any change to Bacula's configuration. Any
+ combination of one or more of the assigned magazines can be attached
+ (mounted) at any time. 
+ 
+ When a magazine is attached or detached there is of course a change in
+ which volumes are available for reading and writing. Bacula must be
+ instructed to update its database to reflect the change. This is
+ analogous to swapping tapes in a tape autochanger library. Bacula has a
+ bconsole command used for this purpose, the 'update slots' command. In
+ general, one would insert or remove tapes and then issue an 'update slots'
+ command in bconsole to inform Bacula of the change. With vchanger,
+ attaching or detaching a magazine also requires that the 'update slots'
+ command be issued, however vchanger now detects changes to the currently
+ available volume files and automatically issues the 'update slots'
+ command when needed. This allows swapping magazines to be a true
+ plug-n-play operation.
+ 
+ The scripts directory in the vchanger source tree contains a script to
+ generate the udev rules needed to automatically mount the magazines
+ filesystems defined in the vchanger configuration file. These rules will
+ cause udev to launch scripts, also included in the scripts directory, to
+ handle a "hot add" event by mounting the magazine filesystem and invoking
+ vchanger with the REFRESH command to issue an 'update slots' command to
+ Bacula. Likewise, a "hot delete" event will launch a script to unmount
+ the filesystem and again invoke vchanger with the REFRESH command.
+ 
+ If vchanger is compiled on a system supporting udev, then libudev will be  
+ used to determine the device node of magazine partitions specified by  
+ UUID. If compiled on a system without udev, the older method of using 
+ libblkid and  libuuid will be used if available. For Windows builds, 
+ win32 API functions are used to map filesystem UUID to device node. If
+ the getmntent() function is not available on the target system for
+ determining a filesystem's mountpoint, then vchanger will use the
+ getfsstat() function, allowing magazines to be specified by UUID on many
+ BSD and OSX systems. A build for a minimal system having neither libudev
+ nor libblkid will succeed, however specifying magazines by UUID will not
+ function and result in an error, meaning that such minimal systems must
+ only specify magazines by directory path. These changes should alleviate
+ many of the problems people have had in the past building vchanger for
+ non-Linux systems. 
+ 
+ Bugs Fixed:
+      5  Compile errors on Debian or Ubuntu
+      6  Broken libblkid returns wrong device for UUID
+      7  Limitation on number of virtual drives
+      8  Compile errors under Solaris 10
+
+ ==================================================================
+ 
 
  Release 0.8.6
 
- When using the automount_dir directive, opendir() is now used rather than
- stat(), to trigger automounts. For some combinations of Linux kernel and older
- versions of autofs, stat() is not sufficient to trigger an automount.
- 
- Extensive logging was added to this version, along with a new configuration
- directive to set the logging level. This should greatly help problem diagnosis.
- 
- State information for the magazine bays is now kept in the work directory
- along with virtual drive state. In a multi-magazine changer, when a magazine
- was unloaded from a bay, magazines in higher numbered bays were being shifted
- down to appear loaded into a different bay than they were before the magazine
- was unloaded. With this version, magazines will remain loaded in the same bay
- until they are unloaded.
+ When using the automount_dir directive, opendir() is now used rather 
+ than  stat(), to trigger automounts. For some combinations of Linux 
+ kernel and older  versions of autofs, stat() is not sufficient to 
+ trigger an automount.
+
+ Extensive logging was added to this version, along with a new 
+ configuration  directive to set the logging level. This should greatly 
+ help problem diagnosis.
+
+ State information for the magazine bays is now kept in the work 
+ directory  along with virtual drive state. In a multi-magazine changer, 
+ when a magazine  was unloaded from a bay, magazines in higher numbered 
+ bays were being shifted  down to appear loaded into a different bay 
+ than they were before the magazine  was unloaded. With this version, 
+ magazines will remain loaded in the same bay  until they are unloaded.
+
+ Bugs Fixed:
+
+ ==================================================================
+
 
  Release 0.8.5
 
- Minor bug fix release. Fixes link errors for older versions of e2fsprogs on some
- distros (bug 2941290). Also applies the "safe strncat" patch to prevent a buffer
- overrun present in strncat in some standard C libraries.
+ Minor bug fix release. Fixes link errors for older versions of 
+ e2fsprogs on some  distros (bug 4). Also applies the "safe strncat" 
+ patch to prevent a buffer  overrun present in strncat in some standard 
+ C libraries.
+ 
+ Bugs Fixed:
+      4  Compile errors related to e2fsprogs libraries
+
+ ==================================================================
+
 
  Release 0.8.4
 
- This release is a bug fix release. All users of version 0.8.3 should upgrade to
- 0.8.4 to prevent a bug causing Bacula to mark volumes in error.
- 
+ This release is a bug fix release. All users of version 0.8.3 should 
+ upgrade to  0.8.4 to prevent a bug causing Bacula to mark volumes in 
+ error.
+
  Change Summary:
-  The slot number passed in parameter 3 is now ignored for the LOADED command.
-  This should fix a bug causing Bacula to mark a volume loaded into a drive in
-  error when a job starts after the magazine has been removed. 
+ The slot number passed in parameter 3 is now ignored for the LOADED 
+ command. This should fix a bug causing Bacula to mark a volume 
+ loaded into a drive in error when a job starts after the magazine 
+ has been removed. 
 
  Bugs Fixed:
-  2907225  Slot number should be ignored for LOADED command
-  2872006  Compile fail on FreeBSD 7.2
+      3  LOADED command fails when param 3 (slot) is zero
+      2  Compile fail on FreeBSD 7.2
 
  ==================================================================
 
@@ -44,31 +180,35 @@
  making it much easier to use multiple simultaneous magazines.
  
  Change Summary:
-  Specifying magazine partitions by UUID is a paradigm shift in the way magazines
-  may be assigned to a particular autochanger. Previously, magazines were assigned
-  to an autochanger by giving the magazine a filesystem label matching the
-  autochanger's name. Standard udev rules on many distributions create a device
-  symlink in /dev/disk/by-label that allow easily configuring autofs to mount the
-  magazine at a known mountpoint. This works well for a single magazine autochanger,
-  but for a multi-magazine autochanger special udev rules are needed to create
-  unique device symlinks when all of the magazines have the same filesystem label.
-  Since the standard udev rules on most systems create device symlinks by filesystem
-  UUID under /dev/disk/by-uuid, assigning magazines to an autochanger by UUID makes
-  it much easier to configure automounting that will work for an autochanger with
-  any number of simultaneously mounted magazines.
+
+ Specifying magazine partitions by UUID is a paradigm shift in the way 
+ magazines may be assigned to a particular autochanger. Previously, 
+ magazines were assigned to an autochanger by giving the magazine a 
+ filesystem label matching the autochanger's name. Standard udev 
+ rules on many distributions create a device symlink in 
+ /dev/disk/by-label that allow easily configuring autofs to mount the   
+ magazine at a known mountpoint. This works well for a single magazine 
+ autochanger, but for a multi-magazine autochanger special udev rules 
+ are needed to create unique device symlinks when all of the 
+ magazines have the same filesystem label. Since the standard udev 
+ rules on most systems create device symlinks by filesystem UUID 
+ under /dev/disk/by-uuid, assigning magazines to an autochanger by UUID 
+ makes it much easier to configure automounting that will work for an 
+ autochanger with any number of simultaneously mounted magazines.
   
-  Note that magazines may still be specified as a directory path, so the previous
-  methods still work, however it is recommended to assign magazines by UUID if
-  possible.
-  
-  As an aid to working with multi-magazine autochangers, a new extended API
-  command, LISTMAGS, was added to list the magazines currently "inserted" into
-  each of the autochanger's magazine bays. Like the INITMAG command, it is an
-  extension to the Bacula Autochanger API and so is never invoked by Bacula.
+ Note that magazines may still be specified as a directory path, so the 
+ previous methods still work, however it is recommended to assign 
+ magazines by UUID if possible.
+ 
+ As an aid to working with multi-magazine autochangers, a new extended 
+ API command, LISTMAGS, was added to list the magazines currently 
+ "inserted" into each of the autochanger's magazine bays. Like the 
+ INITMAG command, it is an extension to the Bacula Autochanger API and so 
+ is never invoked by Bacula.
 
  Bugs Fixed:
-  2785183  Unable to detect when drives inserted using the vchanger
-  2872006  Compile fail on FreeBSD 7.2
+      1  Unable to detect when drives inserted using the vchanger
+      2  Compile fail on FreeBSD 7.2
 
  ==================================================================
 

@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2014 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -23,18 +23,11 @@
 #ifndef _UTIL_H_
 #define _UTIL_H_ 1
 
-#include "config.h"
-#include <stdio.h>
-
 /* Utility Functions */
-void build_arglist(char *cmdline, int *argc, char *argv[], int max_argv);
-void print_stderr(const char *format, ...);
-void print_stdout(const char *format, ...);
-void millisleep(long msecs);
-long timeval_et_ms(struct timeval *tv1, struct timeval *tv2);
-size_t strip_whitespace(char *buff, size_t buff_size);
+long timeval_et(struct timeval *tv1, struct timeval *tv2);
 int exclusive_fopen(const char *fname, FILE **fs);
+int file_copy(const char *to, const char *from);
+int drop_privs(const char *uname, const char *gname);
 int is_root_user();
-int become_another_user(const char *user_name, const char *group_name);
 
 #endif /* _UTIL_H_ */

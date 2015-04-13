@@ -1,0 +1,206 @@
+'\" t
+.\"     Title: vchanger
+.\"    Author: Josh Fisher <jfisher@jaybus.com>
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 04/03/2015
+.\"    Manual: vchanger Manual
+.\"    Source: vchanger 1.0.0
+.\"  Language: English
+.\"
+.TH "VCHANGER" "8" "04/03/2015" "vchanger 1\&.0\&.0" "vchanger Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+vchanger \- Virtual disk\-based autochanger for Bacula network backup system
+.SH "SYNOPSIS"
+.sp
+\fBvchanger\fR [\fIOptions\fR] config command [slot] [device] [drive]
+.sp
+\fBvchanger\fR [\fIOptions\fR] config CREATEVOLS mag_ndx count [start]
+.sp
+\fBvchanger\fR [\fIOptions\fR] config LISTMAGS
+.sp
+\fBvchanger\fR [\fIOptions\fR] config REFRESH
+.SH "DESCRIPTION"
+.sp
+The \fBvchanger(8)\fR utility is used to emulate and control a virtual autochanger within the Bacula network backup system environment\&. Backup volumes stored on multiple disk filesystems are mapped to a single set of virtual slots, allowing an unlimited number of virtual drives for concurrent backup jobs and easy, unlimited scaling to any size by simply adding additional disks/filesystems,
+.sp
+Vchanger is primarily deigned for use with removable disk drives\&. Its ability to interact with Bacula and determine removable drive mount points through udev allow for plug\-n\-play operation when attaching and detaching removable disk drives\&.
+.sp
+The first argument, \fIconfig\fR, is required amd specifies the path to the \fBvchanger\&.conf(5)\fR configuration file of the autochanger to be commanded\&.
+.sp
+The second argument, \fIcommand\fR, is the Bacula Autochanger Interface command to perform\&.
+.sp
+The third argument, \fIslot\fR, is required for the LOAD, LOADED, and UNLOAD commands and gives the slot number of the volume to act upon\&.
+.sp
+The fourth argument, \fIdevice\fR, is required for the LOAD, LOADED, and UNLOAD commands\&. It normally specifies the device node of a tape drive for tape autochangers\&. For vcahnger, it is only required as a place holder, and its value is ignored\&.
+.sp
+The fifth argument, \fIdrive\fR, is required for the LOAD, LOADED, and UNLOAD commands and gives the zero\-based drive number to act upon\&.
+.sp
+Vchanger implements the commands defined by the Bacula Autochanger Interface specification\&. The following commands are supported\&.
+.PP
+\fBLIST\fR
+.RS 4
+List slots, one line each, in the format slot:label\&.
+.RE
+.PP
+\fBLOAD\fR \fIslot\fR \fIdevice\fR \fIdrive\fR
+.RS 4
+Load the volume in slot
+\fIslot\fR
+into drive
+\fIdrive\fR\&.
+.RE
+.PP
+\fBLOADED\fR \fIslot\fR \fIdevice\fR \fIdrive\fR
+.RS 4
+Print the slot number currently loaded into drive
+\fIdrive\fR, or print
+\fI0\fR
+if the drive is unloaded\&.
+.RE
+.PP
+\fBSLOTS\fR
+.RS 4
+Print the number of slots\&.
+.RE
+.PP
+\fBUNLOAD\fR \fIslot\fR \fIdevice\fR \fIdrive\fR
+.RS 4
+Unload the volume currently loaded in drive
+\fIdrive\fR\&.
+.RE
+.sp
+Vchanger also implements the following undocumented comands
+.PP
+\fBLISTALL\fR
+.RS 4
+List drive status followed by slot status, one line for each drive or slot, in the format type:number:status:label, where
+\fItype\fR
+is D for a drive or S for a slot,
+\fInumber\fR
+is the drive or slot number,
+\fIstatus\fR
+is E for empty or F for full, and
+\fIlabel\fR
+is the volume label (barcode)\&.
+.RE
+.sp
+Additionally, the following extended commands are supported\&.
+.PP
+\fBCREATEVOLS\fR \fImag_ndx\fR \fIcount\fR \fI[start]\fR
+.RS 4
+Create
+\fIcount\fR
+volume files on the magazine indexed by
+\fImag_ndx\fR\&. Magazines are directories and/or filesystems that have been defined in the
+\fBvchanger(5)\fR
+configuration file given by
+\fIconfig\fR\&. The magazine index is based on the order in which the Magazine directives appear in the configuration file, where index zero is the first occurrence\&. Optionally,
+\fIstart\fR
+specifies the minimum integer uniqueness number to append to a prefix string when generating filenames for the created volume files\&. The default is to use a uniqueness number greater than highest number currently used for any volume file on the selected magazine\&.
+.RE
+.PP
+\fBLISTMAGS\fR
+.RS 4
+List the status of all assigned magazines (directories and filesystems), one per line, in the format mag:count:start:mnt, where
+\fImag\fR
+is zero\-based index of the magazines specified in configuration file
+\fIconfig\fR,
+\fIcount\fR
+is the number of volume files on that magazine,
+\fIstart\fR
+is the virtual slot number of the beginning of the range of slots mapped to the magazine\(cqs volume files, and
+\fImnt\fR
+is the magazine\(cqs directory/mountpoint if mounted, or blank if not currently mounted\&.
+.RE
+.PP
+\fBREFRESH\fR
+.RS 4
+Refresh state information for the autochanger defined by the configuration file
+\fIconfig\fR, issuing an
+\fIupdate slots\fR
+command to Bacula if required\&.
+.RE
+.sp
+\fBBacula Interaction\fR
+.sp
+By default, vcahgner will invoke bconsole and issue commands to Bacula when certain operator actions are needed\&. When anything happens that changes the current set of volume files being used, vchanger will invoke bconsole and issue an \fIupdate slots\fR command\&. For example, when the operator attaches a removable drive defined as one of the changer\(cqs magazines, the volume files on the removable drive must be mapped to virtual slots\&. Since the volume\-to\-slot mapping will have changed, Bacula will need to be informed of the change via the \fIupdate slots\fR command\&. The \fBREFRESH\fR command can be invoked to force vchanger to update state info and trigger \fIupdate slots\fR if needed\&.
+.sp
+Additionally, when new volumes are created with the \fBCREATEVOLS\fR command, vchanger will invoke bconsole and issue a \fIlabel barcodes\fR command to write volume labels on the newly created volume files\&.
+.SH "COMMAND LINE OPTIONS"
+.PP
+\fB\-u, \-\-user\fR=\fIuid\fR
+.RS 4
+Override the default user to run as when invoked by root\&. The default is normally specified in the configuration file given by
+\fIconfig\fR\&.
+.RE
+.PP
+\fB\-g, \-\-group\fR=\fIgid\fR
+.RS 4
+Override the default group to run as when invoked by root\&. The default is normally specified in the configuration file given by
+\fIconfig\fR\&.
+.RE
+.PP
+\fB\-\-pool\fR=\fIpool\fR
+.RS 4
+Overrides the name of the pool into which volumes created by the CREATEVOLS command will be placed when vchanger is configured to label new volumes by sending Bacula a
+\fIlabel barcodes\fR
+command\&. The default is given by the
+\fIDefault Pool\fR
+setting in the configuration file\&.
+.RE
+.PP
+\fB\-l, \-\-label\fR=\fIprefix\fR
+.RS 4
+Overrides the default volume label prefix when generating names for new volume files created by the CREATEVOLS command\&. The default is
+\fIname_ndx\fR, where
+\fIname\fR
+is the autochanger name and
+\fIndx\fR
+is the magazine index\&.
+.RE
+.PP
+\fB\-\-help\fR
+.RS 4
+Displays command help for the vchanger command\&.
+.RE
+.PP
+\fB\-\-version\fR
+.RS 4
+Displays vchanger version information\&.
+.RE
+.SH "NOTES"
+.sp
+See the vchangerHowto\&.html file included in the doc directory of the source distribution for more detailed documentation\&.
+.SH "SEE ALSO"
+.sp
+\fBvchanger\&.conf(5)\fR
+.SH "COPYRIGHT"
+.sp
+Copyright 2006\-2015 Josh Fisher
+.sp
+This is free software; See the source for copying conditions\&. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE\&.
+.SH "AUTHOR"
+.PP
+\fBJosh Fisher\fR <\&jfisher@jaybus\&.com\&>
+.RS 4
+Author.
+.RE

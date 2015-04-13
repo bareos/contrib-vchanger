@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2015 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -24,55 +24,57 @@
 #define DISKCHANGER_H_
 
 #include "vconf.h"
+#include "errhandler.h"
 #include "changerstate.h"
 
 class DiskChanger
 {
 public:
-   DiskChanger();
+   DiskChanger() : changer_lock(NULL), needs_update(false), needs_label(false)  {}
    virtual ~DiskChanger();
-   int Initialize(VchangerConfig &conf);
+   int Initialize();
    int LoadDrive(int drv, int slot);
    int UnloadDrive(int drv);
-   int GetDriveSlot(int drv);
-   int GetSlotDrive(int slot);
-   int CreateMagazine(int bay, int magnum = -1);
-   int GetLastError(char *msg, size_t msg_size);
+   int CreateVolumes(int bay, int count, int start = -1, const char *label_prefix = "");
+   int UpdateBacula();
+   const char* GetVolumeLabel(int slot);
+   const char* GetVolumePath(tString &fname, int slot);
+   bool MagazineEmpty(int bay) const;
+   bool SlotEmpty(int slot) const;
+   bool DriveEmpty(int drv) const;
+   int GetDriveSlot(int drv) const;
+   int GetSlotDrive(int slot) const;
+   int GetMagazineSlots(int mag) const;
+   int GetMagazineStartSlot(int mag) const;
+   const char* GetMagazineMountpoint(int mag) const;
+   inline int NumDrives() { return (int)drive.size(); }
+   inline int NumMagazines() { return (int)magazine.size(); }
+   inline int NumSlots() { return (int)vslot.size() - 1; }
+   inline int GetError() { return verr.GetError(); }
+   inline const char* GetErrorMsg() const { return verr.GetErrorMsg(); }
+   inline bool NeedsUpdate() const { return needs_update; }
+   inline bool NeedsLabel() const { return needs_label; }
+   int Lock(long timeout = 30);
    void Unlock();
 protected:
-   bool Lock(long timeout = 10);
-   void internalUnlock();
-   void SetDefaults();
-   int GetDriveSymlinkDir(int drv, char *lnkdir, size_t lnkdir_size);
-   int DoLoad(int bay, int drv, VolumeLabel &lab);
-   int DoUnload(int bay, int drive, VolumeLabel &lab);
-   int SetDriveSymlink(int drv, const char *mountpoint);
+   void InitializeMagazines();
+   int FindEmptySlotRange(int count);
+   int InitializeDrives();
+   void InitializeVirtSlots();
+   void SetMaxDrive(int n);
+   int CreateDriveSymlink(int drv);
    int RemoveDriveSymlink(int drv);
-   int WriteMagazineIndex(const char *mountpt, int magnum);
-   int ReadMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab);
-   int WriteMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab);
-   int ReadNextMagazineNumber();
-   int WriteNextMagazineNumber(int magnum);
-   int MagNum2MagBay(int mganum);
-   int MagSlot2VirtualSlot(int magnum, int magslot);
-   int VirtualSlot2MagSlot(int slot, int &bay);
-   int VirtualSlot2VolumeLabel(int slot, VolumeLabel &lab);
-   int VolumeLabel2VirtualSlot(const VolumeLabel &lab);
-public:
-   char changer_name[64];
-   char work_dir[PATH_MAX];
-   MagazineState magazine[MAX_MAGAZINE_BAYS];
-   DriveState drive[MAX_DRIVES];
-//   int32_t mag_number[MAX_MAGAZINES];
-//   int32_t loaded[MAX_MAGAZINES];
-   int32_t magazine_bays;
-   int32_t virtual_drives;
-   int32_t slots_per_mag;
-   int32_t slots;
+   int SaveDriveState(int drv);
+   int RestoreDriveState(int drv);
 protected:
    FILE *changer_lock;
-   int lasterr;
-   char lasterrmsg[4096];
+   bool needs_update;
+   bool needs_label;
+   ErrorHandler verr;
+   DynamicConfig dconf;
+   MagazineStateArray magazine;
+   DriveStateArray drive;
+   VirtualSlotArray vslot;
 };
 
 #endif /*DISKCHANGER_H_*/

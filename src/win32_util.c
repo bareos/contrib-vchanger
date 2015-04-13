@@ -1,8 +1,8 @@
-/*  compat_util.c
+/*  win32_util.c
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2009 Josh Fisher
+ *  vchanger copyright (C) 2008-2012 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -21,26 +21,36 @@
  *             Boston,  MA  02111-1307, USA.
  */
 
-#include "vchanger.h"
+#include "config.h"
+
+#ifdef HAVE_WINDOWS_H
+
+#include "targetver.h"
+#include <windows.h>
+#include <winerror.h>
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STDINT_H
+#include <stdint.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+
+#include "win32_util.h"
+
 #ifndef ENODATA
 #define ENODATA EIO
 #endif
 #ifndef ENOMEDIUM
 #define ENOMEDIUM ENOSPC
 #endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
 
-#ifdef HAVE_WINDOWS_H
-/*
+/*-------------------------------------------------
  *  Convert 100 ns intervals since 1601-01-01 00:00:00 UTC in 'ftime' to
  *  seconds since 1970-01-01 00:00:00 UTC and return as type time_t.
- */
+ *-------------------------------------------------*/
 time_t ftime2utime(const FILETIME *ftime)
 {
    uint64_t ut = ftime->dwHighDateTime;
@@ -51,27 +61,31 @@ time_t ftime2utime(const FILETIME *ftime)
    return (time_t)ut;
 }
 
-/*
- *  Utility function to convert UTF-8 string 'str' to a UTF-16 string. 'u16str'
- *  is pointer to a pointer to a caller supplied buffer where the UTF-16
- *  string will be created. 'u16size' is a pointer to a size_t variable that
- *  contains the size of the supplied buffer. On entry, if the pointer that
+
+/*-------------------------------------------------
+ *  Utility function to convert an ANSI string 'str' to a UTF-16 string.
+ *  'u16str' is pointer to a pointer to a caller supplied buffer where the
+ *  UTF-16 string will be created. 'u16size' is a pointer to a size_t variable
+ *  that contains the size of the supplied buffer. On entry, if the pointer that
  *  'u16str' points to is NULL, then a buffer for the result UTF-16 string will
  *  be allocated using malloc. A pointer to the allocated buffer will be
  *  returned in *u16str and the size of the allocated buffer (in bytes) will be
  *  returned in *u16size. It is the caller's responsibility to free the
- *  allocated buffer.
+ *  allocated buffer. If the caller supplies a buffer then no memory will be
+ *  allocated, and if the buffer is too small then NULL will be returned.
  *  On success, a pointer to the UTF-16 string is returned.
  *  On error, NULL is returned.
- */
-wchar_t* UTF8ToUTF16(const char *str, wchar_t **u16str, size_t *u16size)
+ *-------------------------------------------------*/
+wchar_t* AnsiToUTF16(const char *str, wchar_t **u16str, size_t *u16size)
 {
    size_t needed;
+   UINT acp = GetACP();  /* Use current active code page for conversion */
+
    if (!str) {
       return NULL; /* NULL input string is an error */
    }
-   /* Determine size of buffer needed for UTF-16 string */
-   needed = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
+   /* Determine size of buffer needed for the UTF-16 string */
+   needed = MultiByteToWideChar(acp, 0, str, -1, NULL, 0);
    if (*u16str) {
       /* If caller supplied a buffer, check that it's large enough */
       if (*u16size < needed) {
@@ -82,32 +96,36 @@ wchar_t* UTF8ToUTF16(const char *str, wchar_t **u16str, size_t *u16size)
       *u16size = needed * sizeof(wchar_t);
       *u16str = (wchar_t*)malloc(*u16size);
    }
-   /* Do the UTF-8 to UTF-16 conversion */
-   MultiByteToWideChar(CP_UTF8, 0, str, -1, *u16str, *u16size);
+   /* Do the ANSI to UTF-16 conversion */
+   MultiByteToWideChar(acp, 0, str, -1, *u16str, *u16size);
    return *u16str;
 }
 
-/*
- *  Utility function to convert UTF-16 string 'u16str' to a UTF-8 string. 'str'
- *  is pointer to a pointer to a caller supplied buffer where the UTF-8
+
+/*-------------------------------------------------
+ *  Utility function to convert UTF-16 string 'u16str' to an ANSI string.
+ *  'str' is a pointer to a pointer to a caller supplied buffer where the UTF-8
  *  string will be created. 'str_size' is a pointer to a size_t variable that
  *  contains the size of the supplied buffer. On entry, if the pointer that
- *  'str' points to is NULL, then a buffer for the result UTF-8 string will
+ *  'str' points to is NULL, then a buffer for the result ANSI string will
  *  be allocated using malloc. A pointer to the allocated buffer will be
  *  returned in *str and the size of the allocated buffer (in bytes) will
  *  be returned in *str_size. It is the caller's responsibility to free the
- *  allocated buffer.
- *  On success, a pointer to the UTF-8 string is returned.
+ *  allocated buffer.If the caller supplies a buffer then no memory will be
+ *  allocated, and if the buffer is too small then NULL will be returned.
+ *  On success, a pointer to the ANSI string is returned.
  *  On error, NULL is returned.
- */
-char *UTF16ToUTF8(const wchar_t *u16str, char **str, size_t *str_size)
+ *-------------------------------------------------*/
+char *UTF16ToAnsi(const wchar_t *u16str, char **str, size_t *str_size)
 {
    size_t needed;
+   UINT acp = GetACP();  /* Use current code page for conversion */
+
    if (!u16str) {
       return NULL; /* NULL input string is an error */
    }
    /* Determine size of buffer needed for UTF-8 string */
-   needed = WideCharToMultiByte(CP_UTF8, 0, u16str, -1, NULL, 0, NULL, NULL);
+   needed = WideCharToMultiByte(acp, 0, u16str, -1, NULL, 0, NULL, NULL);
    if (*str) {
       /* If caller supplied a buffer, check that it's large enough */
       if (*str_size < needed) {
@@ -118,14 +136,15 @@ char *UTF16ToUTF8(const wchar_t *u16str, char **str, size_t *str_size)
       *str_size = needed;
       *str = (char*)malloc(*str_size);
    }
-   /* Do the UTF-16 to UTF-8 conversion */
-   WideCharToMultiByte(CP_UTF8, 0, u16str, -1, *str, *str_size, NULL, NULL);
+   /* Do the UTF-16 to ANSI conversion */
+   WideCharToMultiByte(acp, 0, u16str, -1, *str, *str_size, NULL, NULL);
    return *str;
 }
 
-/*
+
+/*-------------------------------------------------
  *  Translate win32 error codes to errno
- */
+ *-------------------------------------------------*/
 int w32errno(DWORD werr)
 {
    switch (werr) {
@@ -235,84 +254,6 @@ int w32errno(DWORD werr)
    }
    return ENOSYS;
 }
+
 #endif
 
-#ifndef HAVE_SYSLOG_H
-
-/*  Windows doesn't do syslog() ... ignore for now. Perhaps win32 event logging
- *  could be used to emulate syslog in future.
- */
-void openlog(const char *app, int option, int facility)
-{
-}
-
-void closelog(void)
-{
-}
-
-void syslog(int type, const char *fmt, ...)
-{
-}
-#endif
-
-#ifndef HAVE_CTIME_R
-/*
- *  Emulate SUSv2 ctime_r() function using C89 ctime(). Note that this
- *  keeps the caller from using the unsafe buffer  over any extended period,
- *  but it is still not thread safe and will fail if two threads call this
- *  function nearly simultaneously.
- */
-char *ctime_r(const time_t *timep, char *buf)
-{
-   char *tt = ctime(timep);
-   if (!tt) {
-      return NULL;
-   }
-   strncpy(buf, tt, 26);
-   return buf;
-}
-#endif
-
-#ifndef HAVE_GETLINE
-/*
- *   Emulate GNU extension function getline().
- */
-ssize_t getline(char **lineptr, size_t *lineptr_sz, FILE *stream)
-{
-   int c;
-   size_t n = 0;
-
-   c = fgetc(stream);
-   if (c == EOF) {
-      return -1;
-   }
-   if (*lineptr == NULL) {
-      *lineptr_sz = 4096;
-      *lineptr = (char*)malloc(*lineptr_sz);
-      if (*lineptr == NULL) {
-         return -1;
-      }
-   }
-   while (c != EOF && c != '\n')
-   {
-      if (n + 1 >= *lineptr_sz) {
-         *lineptr_sz += 4096;
-         *lineptr = (char*)realloc(*lineptr, *lineptr_sz);
-         if (*lineptr == NULL) {
-            return -1;
-         }
-      }
-      (*lineptr)[n++] = (char)c;
-      c = fgetc(stream);
-   }
-   if (c == '\n') {
-      if (n && (*lineptr)[n-1] == '\r') {
-         (*lineptr)[n-1] = '\n';
-      } else {
-         (*lineptr)[n++] = '\n';
-      }
-   }
-   (*lineptr)[n] = 0;
-   return (ssize_t)n;
-}
-#endif

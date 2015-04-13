@@ -1,8 +1,8 @@
-/*  vchanger_common.h
+/*
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008 Josh Fisher
+ *  vchanger copyright (C) 2008-2013 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -20,16 +20,20 @@
  *             59 Temple Place - Suite 330,
  *             Boston,  MA  02111-1307, USA.
  */
-#ifndef _VCHANGER_COMMON_H_
-#define _VCHANGER_COMMON_H_ 1
 
-#include "loghandler.h"
-#include "diskchanger.h"
-#include "vconf.h"
+#ifndef _LOCALTIME_R_H_
+#define _LOCALTIME_R_H_
 
-/* Global Variables */
-extern VchangerConfig conf;
-extern LogHandler vlog;
-extern DiskChanger changer;
+#ifndef HAVE_LOCALTIME_R
+/* For systems without localtime_r function, use internal version */
+#ifdef __cplusplus
+extern "C" {
+#endif
+struct tm* localtime_r(const time_t *timep, struct tm *buf);
+#ifdef __cplusplus
+}
+#endif
+#endif
 
-#endif /* _VCHANGER_COMMON_H_ */
+
+#endif /* _LOCALTIME_R_H_ */

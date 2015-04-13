@@ -1,0 +1,52 @@
+#!/bin/sh
+#
+# Build for 32-bit and 64-bit Windows binary and create NSIS installer
+#
+VERS=1.0.0
+rm -f ./win32/vchanger-$VERS.exe
+rm -f ./win32/vchanger.exe
+rm -f ./win32/vchanger64.exe
+rm -f ./win32/vchanger-example.conf
+rm -f ./win32/vchangerHowto.htm
+rm -f ./win32/license.txt
+rm -f ./win32/ReleaseNotes.txt
+rm -rf /tmp/vchanger-win32
+mkdir /tmp/vchanger-win32
+make distclean
+
+#
+# Configure for Linux mingw cross-compile and build 32-bit Windows binary
+#
+./configure --host=i686-w64-mingw32 --build=`./config.guess` --prefix=/tmp/vchanger-win32
+[ $? -eq 0 ] || exit 1
+make
+[ $? -eq 0 ] || exit 1
+make install-strip
+[ $? -eq 0 ] || exit 1
+cp /tmp/vchanger-win32/bin/vchanger.exe ./win32
+
+#
+# Configure for Linux mingw cross-compile and build 64-bit Windows binary
+#
+make distclean
+rm -rf /tmp/vchanger-win32/*
+./configure --host=x86_64-w64-mingw32 --build=`./config.guess` --prefix=/tmp/vchanger-win32
+[ $? -eq 0 ] || exit 1
+make
+[ $? -eq 0 ] || exit 1
+make install-strip
+[ $? -eq 0 ] || exit 1
+cp /tmp/vchanger-win32/bin/vchanger.exe ./win32/vchanger64.exe
+cp /tmp/vchanger-win32/share/doc/vchanger-$VERS/vchanger-example.conf ./win32
+cp /tmp/vchanger-win32/share/doc/vchanger-$VERS/vchangerHowto.html ./win32
+cp COPYING ./win32/license.txt
+cp ReleaseNotes ./win32/ReleaseNotes.txt
+rm -rf /tmp/vchanger-win32
+
+#
+# Create NSIS installer
+#
+cd win32
+makensis installer.nsi
+chmod 755 vchanger-$VERS.exe
+cd ..

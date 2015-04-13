@@ -1,0 +1,145 @@
+'\" t
+.\"     Title: vchanger.conf
+.\"    Author: Josh Fisher <jfisher@jaybus.com>
+.\" Generator: DocBook XSL Stylesheets v1.78.1 <http://docbook.sf.net/>
+.\"      Date: 04/03/2015
+.\"    Manual: vchanger Manual
+.\"    Source: vchanger.conf 1.0.0
+.\"  Language: English
+.\"
+.TH "VCHANGER\&.CONF" "5" "04/03/2015" "vchanger\&.conf 1\&.0\&.0" "vchanger Manual"
+.\" -----------------------------------------------------------------
+.\" * Define some portability stuff
+.\" -----------------------------------------------------------------
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.\" http://bugs.debian.org/507673
+.\" http://lists.gnu.org/archive/html/groff/2009-02/msg00013.html
+.\" ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+.ie \n(.g .ds Aq \(aq
+.el       .ds Aq '
+.\" -----------------------------------------------------------------
+.\" * set default formatting
+.\" -----------------------------------------------------------------
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.\" -----------------------------------------------------------------
+.\" * MAIN CONTENT STARTS HERE *
+.\" -----------------------------------------------------------------
+.SH "NAME"
+vchanger.conf \- configuration file for *vchanger(8)*
+.SH "SYNOPSIS"
+.sp
+/etc/vchanger/vchanger\&.conf
+.SH "DESCRIPTION"
+.sp
+\fBvchanger(8)\fR is passed the path to a configuration file as its first positional parameter\&. The file contains keyword\-value pairs, specified by the free\-form syntax \fIkeyword\fR = \fIvalue\fR\&. Keywords are case\-insensitive and embedded whitespace is ignored\&. For example, "LOGLEVEL" is equivalent to "Log Level"\&. Values are case\-sensitive and embedded whitespace is preserved, however leading and trailing whitespace is ignored\&. Values may be one of the following types:
+.PP
+BOOLEAN
+.RS 4
+The case insensitive strings "true", "yes", and "1" are accepted as a true value, and "false", "no", and "0" as a false value\&.
+.RE
+.PP
+INTEGER
+.RS 4
+A numeric integer value
+.RE
+.PP
+PATH
+.RS 4
+A filesystem path\&. If the path does not begin with a
+\fI\*(Aq/\fR\*(Aq character, then the path is considered a relative path\&. The directory to which the path is relative is described for the relevant keyword in the
+\fBCONFIGURATION SETTINGS\fR
+section\&.
+.RE
+.PP
+STRING
+.RS 4
+A text string\&. The string may be enclosed in double quotes\&. A quoted string may also contain escape sequences\&. An escape sequence begins with the back slash character \(oq\e\(cq\&. Valid escape sequences are \ea, \eb, \en, \er, \et, \ev, \e\e, and \e", and are interpreted as in the C language\&.
+.RE
+.SH "CONFIGURATION SETTINGS"
+.PP
+\fBbconsole\fR = \fIPATH\fR
+.RS 4
+Specifies the path to the bconsole utility used to interface with the Bacula console\&. If given as a relative path, standard shell path search semantics apply\&. Specifying the empty string "" disables the sending of commands to Bacula\&. The default is "bconsole"\&.
+.RE
+.PP
+\fBbconsole config\fR = \fIPATH\fR
+.RS 4
+Specifies the path to the bconsole configuration file to use when invoking bconsole\&. The path is passed to bconsole using its \-c flag\&. If the empty string "" is specified, then bconsole is invoked without the \-c flag\&. The default is ""\&.
+.RE
+.PP
+\fBDefault Pool\fR = \fISTRING\fR
+.RS 4
+Specifies the name of the pool into which newly created volumes should be placed when labeling the new volumes via bconsole\&. The default is "Scratch"\&.
+.RE
+.PP
+\fBGroup\fR = \fISTRING\fR
+.RS 4
+Specifies the group that
+\fBvchanger(8)\fR
+should run as when invoked by the root user\&. The default \-s "tape"\&.
+.RE
+.PP
+\fBLogfile\fR = \fIPATH\fR
+.RS 4
+Specifies the path to the vchanger logfile\&. If a relative path is specified, then it is relative to the directory defined by the
+\fBWork Dir\fR
+keyword\&. The default is a file name that is the string "\&.conf" appended to the value of the
+\fIStorage Resource\fR
+keyword in the
+\fIWork Dir\fR
+directory\&.
+.RE
+.PP
+\fBLog Level\fR = \fIINTEGER\fR
+.RS 4
+Specifies the amount of logging desired\&. The value is an integer between 0 and 7, inclusive, corresponding to the LOG_EMERG through LOG_DEBUG log levels defined in
+\fBsyslog(3)\fR\&.
+.RE
+.PP
+\fBMagazine\fR = (\fIPATH\fR or \fISTRING\fR)
+.RS 4
+Specifies a directory or file system that contains volume files that the changer specified by the
+\fBStorage Resource\fR
+keyword may use\&. this keyword may appear more than once in the configuration file in order to specify multiple magazines\&. Mounted file systems may be specified by prepending the string "UUID:" (case insensitive) to the UUID of the file system\&. Otherwise, the value specifies the path to a directory\&.
+.RE
+.PP
+\fBStorage Resource\fR = \fISTRING\fR
+.RS 4
+Specifies the name of the Storage resource, defined in the Bacula Director daemon\*(Aq\*(Aqs configuration file (bacula\-dir\&.conf), that is associated with this changer\&. The default is "vchanger"\&.
+.RE
+.PP
+\fBUser\fR = \fISTRING\fR
+.RS 4
+Specifies the user that
+\fBvchanger(8)\fR
+should run as when invoked by the root user\&. The default is "bacula"\&.
+.RE
+.PP
+\fBWork Dir\fR = \fIPATH\fR
+.RS 4
+Specifies the path to the work directory
+\fBvchanger(8)\fR
+will use for this changer\&. The default is a sub\-directory of /var/spool/vchanger named as the value of the
+\fBStorage Resource\fR
+keyword\&.
+.RE
+.SH "NOTES"
+.sp
+See the vchangerHowto\&.html file included in the doc directory of the source distribution for more detailed documentation\&.
+.SH "SEE ALSO"
+.sp
+\fBvchanger(8)\fR
+.SH "COPYRIGHT"
+.sp
+Copyright 2006\-2015 Josh Fisher
+.sp
+This is free software; See the source for copying conditions\&. There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE\&.
+.SH "AUTHOR"
+.PP
+\fBJosh Fisher\fR <\&jfisher@jaybus\&.com\&>
+.RS 4
+Author.
+.RE

@@ -1,0 +1,180 @@
+VCHANGER(8)
+===========
+Josh Fisher <jfisher@jaybus.com>
+:doctype: manpage
+:man source:   vchanger
+:man version:  1.0.0
+:man manual:   vchanger Manual
+
+NAME
+----
+vchanger - Virtual disk-based autochanger for Bacula network backup system 
+
+
+SYNOPSIS
+--------
+*vchanger* ['Options'] config command [slot] [device] [drive]
+
+*vchanger* ['Options'] config CREATEVOLS mag_ndx count [start]
+
+*vchanger* ['Options'] config LISTMAGS
+
+*vchanger* ['Options'] config REFRESH
+
+
+DESCRIPTION
+-----------
+The *vchanger(8)* utility is used to emulate and control a virtual
+autochanger within the Bacula network backup system environment.
+Backup volumes stored on multiple disk filesystems are mapped to a
+single set of virtual slots, allowing an unlimited number of virtual
+drives for concurrent backup jobs and easy, unlimited scaling to any
+size by simply adding additional disks/filesystems, 
+
+Vchanger is primarily deigned for use with removable disk drives. Its
+ability to interact with Bacula and determine removable drive mount
+points through udev allow for plug-n-play operation when attaching
+and detaching removable disk drives.
+
+The first argument, 'config', is required amd specifies the path to the
+*vchanger.conf(5)* configuration file of the autochanger to be
+commanded.
+
+The second argument, 'command', is the Bacula Autochanger Interface command
+to perform.
+
+The third argument, 'slot', is required for the LOAD, LOADED, and UNLOAD
+commands and gives the slot number of the volume to act upon.
+
+The fourth argument, 'device', is required for the LOAD, LOADED, and UNLOAD
+commands. It normally specifies the device node of a tape drive for tape
+autochangers. For vcahnger, it is only required as a place holder, and its
+value is ignored.
+
+The fifth argument, 'drive', is required for the LOAD, LOADED, and UNLOAD
+commands and gives the zero-based drive number to act upon.
+
+Vchanger implements the commands defined by the Bacula Autochanger
+Interface specification. The following commands are supported.
+
+*LIST*::
+	List slots, one line each, in the format slot:label.
+
+*LOAD* 'slot' 'device' 'drive'::
+	Load the volume in slot 'slot' into drive 'drive'.
+
+*LOADED* 'slot' 'device' 'drive'::
+	Print the slot number currently loaded into drive 'drive', or print
+	'0' if the drive is unloaded.
+	
+*SLOTS*::
+	Print the number of slots.
+
+*UNLOAD* 'slot' 'device' 'drive'::
+	Unload the volume currently loaded in drive 'drive'.
+	
+Vchanger also implements the following undocumented comands
+
+*LISTALL*::
+	List drive status followed by slot status, one line for each
+	drive or slot, in the format type:number:status:label, where
+	'type' is D for a drive or S for a slot, 'number' is the drive
+	or slot number, 'status' is E for empty or F for full, and
+	'label' is the volume label (barcode).
+
+Additionally, the following extended commands are supported.
+
+*CREATEVOLS* 'mag_ndx' 'count' '[start]'::
+	Create 'count' volume files on the magazine indexed by 'mag_ndx'.
+	Magazines are directories and/or filesystems that have been
+	defined in the *vchanger(5)* configuration file given by 'config'.
+	The magazine index is based on the order in which the Magazine
+	directives appear in the configuration file, where index zero is
+	the	first occurrence. Optionally, 'start' specifies the minimum
+	integer uniqueness number to append to a prefix string when
+	generating filenames for the created volume files. The default
+	is to use a uniqueness number greater than highest number
+	currently used for any volume file on the selected magazine. 
+
+*LISTMAGS*::
+	List the status of all assigned magazines (directories and
+	filesystems), one per line, in the format mag:count:start:mnt,
+	where 'mag' is zero-based index of the magazines specified in
+	configuration file 'config', 'count' is the number of volume
+	files on that magazine, 'start' is the virtual slot number
+	of the beginning of the range of slots mapped to the magazine's
+	volume files, and 'mnt' is the magazine's directory/mountpoint
+	if mounted, or blank if not currently mounted.
+
+*REFRESH*::
+	Refresh state information for the autochanger defined by the
+	configuration file 'config', issuing an 'update slots' command to
+	Bacula if required.
+
+*Bacula Interaction*
+
+By default, vcahgner will invoke bconsole and issue commands to Bacula
+when certain operator actions are needed. When anything happens that
+changes the current set of volume files being used, vchanger will
+invoke bconsole and issue an 'update slots' command. For example,
+when the operator attaches a removable drive defined as one of the
+changer's magazines, the volume files on the removable drive must be
+mapped to virtual slots. Since the volume-to-slot mapping will have
+changed, Bacula will need to be informed of the change via the
+'update slots' command. The *REFRESH* command can be invoked to force
+vchanger to update state info and trigger 'update slots' if needed.
+
+Additionally, when new volumes are created with the *CREATEVOLS* command,
+vchanger will invoke bconsole and issue a 'label barcodes' command to
+write volume labels on the newly created volume files.
+
+COMMAND LINE OPTIONS
+--------------------
+
+*-u, --user*='uid'::
+    Override the default user to run as when invoked by root. The default
+    is normally specified in the configuration file given by 'config'.
+
+*-g, --group*='gid'::
+    Override the default group to run as when invoked by root. The default
+    is normally specified in the configuration file given by 'config'.
+
+*--pool*='pool'::
+    Overrides the name of the pool into which volumes created by the
+    CREATEVOLS command will be placed when vchanger is configured to
+	label new volumes by sending Bacula a 'label barcodes' command. The
+	default is given by the 'Default Pool' setting in the configuration
+	file.
+
+*-l, --label*='prefix'::
+    Overrides the default volume label prefix when generating names	for
+	new volume files created by the CREATEVOLS command. The default is
+	'name_ndx', where 'name' is the autochanger name and 'ndx' is the
+	magazine index.
+    
+*--help*::
+    Displays command help for the vchanger command.
+
+*--version*::
+    Displays vchanger version information.
+
+
+NOTES
+-----
+See the vchangerHowto.html file included in the doc directory of the
+source distribution for more detailed documentation.
+
+
+SEE ALSO
+--------
+*vchanger.conf(5)*
+
+
+COPYRIGHT
+---------
+Copyright 2006-2015 Josh Fisher
+
+This is free software;
+See the source for copying conditions.
+There is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.

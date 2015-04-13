@@ -1,18 +1,13 @@
 AUTOMAKE_OPTIONS = foreign
+AM_CFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
+AM_CXXFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 bin_PROGRAMS = vchanger
-vchanger_SOURCES = vchanger_common.h vchanger_common.cpp \
-					compat_util.h compat_util.c \
-					junctions.h junctions.c uuidlookup.c \
-					util.h util.cpp \
-					vconf.h vconf.cpp \
-					loghandler.h loghandler.cpp \
-					diskchanger.h diskchanger.cpp \
-					changerstate.h changerstate.cpp \
+vchanger_SOURCES = compat/getline.c compat/gettimeofday.c \
+					compat/localtime_r.c \
+					compat/readlink.c \
+					compat/symlink.c compat/sleep.c compat/syslog.c \
+					win32_util.c uuidlookup.c bconsole.cpp \
+					tstring.cpp inifile.cpp mypopen.cpp \
+					vconf.cpp loghandler.cpp errhandler.cpp \
+					util.cpp changerstate.cpp diskchanger.cpp \
 					vchanger.cpp
-if BUILDWIN32
-vchanger_LDADD = -lpsapi
-vchanger_LDFLAGS = -static-libgcc
-else
-vchanger_CPPFLAGS = -I/usr/local/include
-vchanger_LDADD = -L/usr/local/lib -luuid -lblkid
-endif

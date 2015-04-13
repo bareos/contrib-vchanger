@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2015 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -24,528 +24,828 @@
  *  the vchanger state directory.
 */
 
+#include "config.h"
+#include "compat_defs.h"
+#ifdef HAVE_STDIO_H
 #include <stdio.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+#ifdef HAVE_STDDEF_H
 #include <stddef.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_DIRENT_H
 #include <dirent.h>
-#include "vchanger.h"
-#include "vchanger_common.h"
+#endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
+#endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+
+#include "compat/getline.h"
+#include "compat/readlink.h"
+#include "compat/symlink.h"
+#include "vconf.h"
+#include "loghandler.h"
+#include "errhandler.h"
 #include "util.h"
+#define __CHANGERSTATE_SOURCE 1
 #include "changerstate.h"
 #include "uuidlookup.h"
 
-
 ///////////////////////////////////////////////////
-//  Class VolumeLabel
+//  Class MagazineSlot
 ///////////////////////////////////////////////////
 
-VolumeLabel::VolumeLabel()
+MagazineSlot::MagazineSlot(const MagazineSlot &b)
 {
-   mag_number = -1;
-   mag_slot = -1;
-   memset(chgr_name, 0, sizeof(chgr_name));
-}
-
-char* VolumeLabel::GetLabel(char *buf, size_t buf_sz)
-{
-   if (!buf) return NULL;
-   buf[0] = '\0';
-   if (mag_slot < 1 || mag_number < 1 || !strlen(chgr_name)) {
-      return buf;
-   }
-   snprintf(buf, buf_sz, "%s_%04d_%04d", chgr_name, mag_number, mag_slot);
-   return buf;
-}
-
-
-int VolumeLabel::set(const char *chgr, int magnum, int magslot)
-{
-   clear();
-   if (!chgr || magnum < 1 || magslot < 1) {
-      return -1;
-   }
-   mag_number = magnum;
-   mag_slot = magslot;
-   strncpy(chgr_name, chgr, sizeof(chgr_name));
-   strip_whitespace(chgr_name, sizeof(chgr_name));
-   if (!strlen(chgr_name)) {
-      clear();
-      return -1;
-   }
-   return 0;
-}
-
-int VolumeLabel::set(const char *vname)
-{
-   int n, p, len;
-   char buf[512];
-
-   clear();
-   if (!vname) return -1;  /* can't be null */
-   strncpy(buf, vname, sizeof(buf));
-   len = strip_whitespace(buf, sizeof(buf));
-   if (len < 11) return -1;  /* must be at least 11 chars */
-   /* Find '_' before magazine slot number */
-   for (p = len - 1; p > 0 && isdigit(buf[p]); p--);
-   if (p <= 0 || buf[p] != '_') {
-      vlog.Info("Couldn't find _ before slot number in %s", vname);
-      return -1;
-   }
-   mag_slot = strtol(buf + (p+1), NULL, 10);
-   if (mag_slot < 1) {
-      vlog.Info("Invalid slot %d in %s", mag_slot, vname);
-      clear();
-      return -1;
-   }
-   buf[p] = 0;
-   for (n = p - 1; n > 0 && isdigit(buf[n]); n--);
-   if (n < 1 || buf[n] != '_') {
-      vlog.Info("Couldn't find _ before mag number in %s", vname);
-	   clear();
-      return -1;
-   }
-   p = n + 1;
-   mag_number = strtol(buf + p, NULL, 10);
-   if (mag_number < 1) {
-      vlog.Info("Invalid mag number %d in %s", mag_number, vname);
-      clear();
-      return -1;
-   }
-   buf[n] = 0;
-   if (strlen(buf) == 0) {
-      vlog.Info("Empty changer name in %s", vname);
-	   clear();
-	   return -1;
-   }
-   strncpy(chgr_name, buf, sizeof(chgr_name));
-   return 0;
-}
-
-void VolumeLabel::clear()
-{
-   mag_number = -1;
-   mag_slot = -1;
-   memset(chgr_name, 0, sizeof(chgr_name));
-}
-
-bool VolumeLabel::operator==(const VolumeLabel &b)
-{
-   if (&b == this) {
-      return true;
-   }
-   if (mag_slot != b.mag_slot) {
-      return false;
-   }
-   if (mag_number != b.mag_number) {
-      return false;
-   }
-   if (strcmp(chgr_name, b.chgr_name)) {
-      return false;
-   }
-   return true;
-}
-
-bool VolumeLabel::operator!=(const VolumeLabel &b)
-{
-   if (&b == this) {
-      return false;
-   }
-   if (mag_slot != b.mag_slot) {
-      return true;
-   }
-   if (mag_number != b.mag_number) {
-      return true;
-   }
-   if (strcmp(chgr_name, b.chgr_name)) {
-      return true;
-   }
-   return false;
-}
-
-VolumeLabel& VolumeLabel::operator=(const VolumeLabel &b)
-{
-   if (&b == this) {
-      return *this;
-   }
+   mag_bay = b.mag_bay;
    mag_slot = b.mag_slot;
-   mag_number = b.mag_number;
-   strncpy(chgr_name, b.chgr_name, sizeof(chgr_name));
+   label = b.label;
+}
+
+MagazineSlot& MagazineSlot::operator=(const MagazineSlot &b)
+{
+   if (&b != this) {
+      mag_bay = b.mag_bay;
+      mag_slot = b.mag_slot;
+      label = b.label;
+   }
    return *this;
 }
 
-
-///////////////////////////////////////////////////
-//  Class DriveState
-///////////////////////////////////////////////////
-
-DriveState::DriveState()
+bool MagazineSlot::operator==(const MagazineSlot &b)
 {
-   drive = -1;
+   if (&b == this) return true;
+   if (label == b.label) return true;
+   return false;
 }
 
-int DriveState::clear()
+bool MagazineSlot::operator!=(const MagazineSlot &b)
 {
-   vol.clear();
-   return save();
+   if (&b == this) return false;
+   if (label != b.label) return true;
+   return false;
 }
 
-int DriveState::set(const VolumeLabel &vlabel)
+/*-------------------------------------------------
+ *  Method to clear object values
+ *-------------------------------------------------*/
+void MagazineSlot::clear()
 {
-   return set(&vlabel);
+   mag_bay = -1;
+   mag_slot = -1;
+   label.clear();
 }
 
-int DriveState::set(const VolumeLabel *vlabel)
-{
-   if (!vlabel) {
-      /* attempt to set bogus volume label */
-      clear();
-      return -2;
-   }
-   vol = *vlabel;
-   if (vol.mag_number < 1 || vol.mag_slot < 1 || !strlen(vol.chgr_name)) {
-      /* attempt to set bogus volume label */
-      clear();
-      return -2;
-   }
-   if (save()) {
-      /* failed to write state file */
-      vol.clear();
-      return -1;
-   }
-   return 0;
-}
-
-int DriveState::set(const char *name)
-{
-   if (vol.set(name)) {
-      /* attempt to set bogus volume label */
-      clear();
-      return -2;
-   }
-   if (save()) {
-      /* failed to write state file */
-      vol.clear();
-      return -1;
-   }
-   return 0;
-}
-
-
-int DriveState::save()
-{
-   FILE *FS;
-   char sname[PATH_MAX], vname[256];
-   if (drive < 0) {
-      /* drive has not been defined */
-      return -1;
-   }
-   snprintf(sname, sizeof(sname), "%s%sstate%d", conf.work_dir, DIR_DELIM, drive);
-   FS = fopen(sname, "w");
-   if (!FS) {
-      /* Unable to write to state file */
-      return -1;
-   }
-   if (!vol.empty()) {
-      if (fprintf(FS, "%s\n", vol.GetLabel(vname, sizeof(vname))) < 0) {
-         /* I/O error writing state file */
-         fclose(FS);
-         return -1;
-      }
-   }
-   fclose(FS);
-   return 0;
-}
-
-
-int DriveState::restore()
-{
-   char sname[PATH_MAX], vname[256];
-   int magnum, magslot;
-   struct stat st;
-   FILE *FS;
-
-   vol.clear();
-   if (drive < 0 || drive >= conf.virtual_drives) return -1;
-
-   /* Check for existing state file */
-   snprintf(sname, sizeof(sname), "%s%sstate%d", conf.work_dir, DIR_DELIM, drive);
-   if (stat(sname, &st)) {
-      /* state file not found, try to create unloaded state */
-      if (save()) {
-         /* unable to write state file */
-         return -1;
-      }
-      /* On first use, drive is in unloaded state */
-      return 0;
-   }
-   /* Read loaded volume label from state file */
-   FS = fopen(sname, "r");
-   if (!FS) return -1;   /* No read permission */
-   if (!fgets(vname, sizeof(vname), FS)) {
-      if (feof(FS)) {
-         vname[0] = '\0';
-      } else {
-         /* error reading state file */
-         fclose(FS);
-         return -1;
-      }
-   }
-   fclose(FS);
-   /* remove trailing newline */
-   strip_whitespace(vname, sizeof(vname));
-   /* restore loaded volume label from state file */
-   if (!strlen(vname)) {
-      /* Last state was unloaded if state file empty */
-      return 0;
-   }
-   if (vol.set(vname)) {
-      /* bogus volume label in state file */
-      clear();
-      return -1;
-   }
-   return 0;
-}
 
 
 ///////////////////////////////////////////////////
 //  Class MagazineState
 ///////////////////////////////////////////////////
 
-MagazineState::MagazineState()
+MagazineState::MagazineState(const MagazineState &b)
 {
-   bay_ndx = 0;
-   mag_number = 0;
-   memset(changer, 0, sizeof(changer));
-   memset(mag_name, 0, sizeof(mag_name));
-   memset(mountpoint, 0, sizeof(mountpoint));
+   mag_bay = b.mag_bay;
+   num_slots = b.num_slots;
+   start_slot = b.start_slot;
+   prev_num_slots = b.prev_num_slots;
+   prev_start_slot = b.prev_start_slot;
+   mag_dev = b.mag_dev;
+   mountpoint = b.mountpoint;
+   mslot = b.mslot;
+   verr = b.verr;
 }
 
-MagazineState::~MagazineState()
+MagazineState& MagazineState::operator=(const MagazineState &b)
 {
+   if (&b != this) {
+      mag_bay = b.mag_bay;
+      num_slots = b.num_slots;
+      start_slot = b.start_slot;
+      prev_num_slots = b.prev_num_slots;
+      prev_start_slot = b.prev_start_slot;
+      mag_dev = b.mag_dev;
+      mountpoint = b.mountpoint;
+      mslot = b.mslot;
+      verr = b.verr;
+   }
+   return *this;
 }
 
 void MagazineState::clear()
 {
-   mag_number = 0;
-   memset(mag_name, 0, sizeof(mag_name));
-   memset(mountpoint, 0, sizeof(mountpoint));
-   save();
+   /* Notice that device and bay number are not cleared */
+   num_slots = 0;
+   start_slot = 0;
+   mountpoint.clear();
+   mslot.clear();
+   verr.clear();
 }
 
-/*
- *  Assigns magazine given by 'mag_name' to this magazine bay and determines if
- *  it is mounted, and whether it is initialized and assigned to a autochanger.
- *  If 'mag_name' begins with "UUID:", then it specifies a file system on a
- *  disk partition to be used as the virtual magazine. Otherwise, 'mag_name'
- *  specifies a directory to be used as the virtual magazine. If a UUID is
- *  given, then the system is queried to determine the mountpoint of the
- *  filesystem with the given UUID. On POSIX systems, the 'automount_dir'
- *  specifies the directory under which autofs or some other automount daemon
- *  creates mountpoints for magazines specified by UUID. It is assumed that the
- *  automount is configured to mount partitions at 'automount_dir'/UUID, where
- *  UUID is the partition's filesystem UUID. When both 'automount_dir' is non-blank
- *  and 'mag_name' specifies a UUID, an attempt is made to read the mountpoint
- *  directory in order to cause the partition to be automounted.
- *  Return values are:
- *       0    Magazine is mounted and initialized
- *       1    Magazine is mounted, but is not initialized
- *      -1    system error
- *      -2    parameter error
- *      -3    mag_name not found or not mounted
- *      -5    permission denied
- *      -6    magazine index file is corrupt
- */
-int MagazineState::set(const char *mag_name_in, const char *automount_dir)
-{
-   int rc;
-   DIR *dir;
-   FILE *fs;
-   char tmp[PATH_MAX], magname[PATH_MAX];
-
-   clear();
-   if (bay_ndx < 1 || !mag_name_in || !strlen(mag_name_in)) {
-      return -2;
-   }
-   strncpy(magname, mag_name_in, sizeof(magname));
-   if (strncasecmp(magname, "UUID:", 5)) {
-      /* magazine specified as file system path */
-      strncpy(mountpoint, magname, sizeof(mountpoint));
-      dir = opendir(mountpoint);
-      if (!dir) {
-         /* could not open mountpoint dir */
-         vlog.Info("MagazineState::set() - opendir error=%d for %s", errno, mountpoint);
-         memset(mountpoint, 0 ,sizeof(mountpoint));
-         if (errno == EACCES) return -5;
-         if (errno == ENOTDIR || errno == ENOENT) return -3;
-         return -1;
-      }
-      closedir(dir);
-      rc = ReadMagazineIndex();
-      if (rc < 0) {
-         /* could not read mountpoint dir */
-         vlog.Info("MagazineState::set() - ReadMagazineIndex returned %d for %s", rc, mountpoint);
-         memset(mountpoint, 0 ,sizeof(mountpoint));
-         return rc;
-     }
-     strncpy(mag_name, magname, sizeof(mag_name));
-     if (save()) {
-        /* could not save magazine bay state */
-        memset(mountpoint, 0 ,sizeof(mountpoint));
-        memset(mag_name, 0 ,sizeof(mag_name));
-        memset(changer, 0 ,sizeof(changer));
-        mag_number = 0;
-        return -1;
-     }
-     return rc;
-   }
-   /* magazine specified as UUID */
-   /* if using an automount_dir, then it is assumed that autofs is
-    * configured to automount the magazine's device at automount_dir/UUID.
-    * We first try to open the the magazine's index file to trigger an automount.
-    */
-   if (automount_dir && strlen(automount_dir)) {
-      snprintf(tmp, sizeof(tmp), "%s/%s/index", automount_dir, magname + 5);
-      fs = fopen(tmp, "r");
-      if (!fs) {
-         /* could not open mountpoint dir */
-         if (errno == EACCES) {
-            vlog.Error("MagazineState::set() - EACCES error opening %s", tmp);
-            return -5;
-         }
-         if (errno == ENOTDIR) {
-            vlog.Info("MagazineState::set() - ENOTDIR error opening %s", tmp);
-            return -3;
-         }
-      } else fclose(fs);
-   }
-   /* In either case, we lookup the mountpoint by UUID */
-   rc = GetMountpointFromUUID(mountpoint, sizeof(mountpoint), magname + 5);
-   if (rc) {
-      /* magazine not mounted or system error */
-      vlog.Info("MagazineState::set() - GetMountpointFromUUID returned %d", rc);
-      return rc;
-   }
-   rc = ReadMagazineIndex();
-   if (rc < 0) {
-      /* magazine not mounted or system error */
-      vlog.Info("MagazineState::set() - ReadMagazineIndex returned %d", rc);
-      return rc;
-   }
-   strncpy(mag_name, magname, sizeof(mag_name));
-   if (save()) {
-      /* could not save magazine bay state */
-      memset(mountpoint, 0 ,sizeof(mountpoint));
-      memset(mag_name, 0 ,sizeof(mag_name));
-      memset(changer, 0 ,sizeof(changer));
-      mag_number = 0;
-      return -1;
-   }
-   return rc;
-}
-
-int MagazineState::ReadMagazineIndex()
-{
-   int n;
-   FILE *fs;
-   char indx[PATH_MAX], buf[256];
-
-   if (!strlen(mountpoint)) return -3;
-   /* Read contents of file named 'index' on magazine partition */
-   snprintf(indx, sizeof(indx), "%s/index", mountpoint);
-   fs = fopen(indx, "r");
-   if (!fs) {
-      if (errno == EACCES) return -5; /* permission denied */
-      if (errno == ENOENT) return 1;  /* index file not found */
-      return -1; /* system or i/o error */
-   }
-   if (!fgets(buf, sizeof(buf), fs)) {
-      /* i/o error reading index file */
-      fclose(fs);
-      return -1; /* could not read index file */
-   }
-   fclose(fs);
-
-   /* parse changer name and magazine number from index file contents */
-   n = strip_whitespace(buf, sizeof(buf));
-   if (!n || n > 254) {
-      return -6; /* invalid index file contents */
-   }
-   /* Find magazine index number */
-   for (n = strlen(buf) - 1; n > 0 && buf[n] != '_'; n--);
-   if (n == 0) {
-      return -6; /* invalid index file contents */
-   }
-   mag_number = strtol(buf + (n + 1), NULL, 10);
-   if (mag_number < 1) {
-      mag_number = -1;
-      return -6; /* invalid index file contents */
-   }
-   /* Get changer name */
-   buf[n] = 0;
-   strncpy(changer, buf, sizeof(changer));
-   return 0;
-}
-
+/*-------------------------------------------------
+ *  Method to save current state of magazine bay to a file in
+ *  the work directory named "bay" + bay_number.
+ *  On success returns zero, otherwise sets lasterr and
+ *  returns errno.
+ *-------------------------------------------------*/
 int MagazineState::save()
 {
+   mode_t old_mask;
+   int rc;
    FILE *FS;
-   char sname[PATH_MAX], vname[256];
+   char sname[4096];
 
-   if (bay_ndx < 1) return -1;   /* bay has not been defined */
-   snprintf(sname, sizeof(sname), "%s%sbay%d", conf.work_dir, DIR_DELIM, bay_ndx);
+   if (mag_bay < 0) {
+      verr.SetErrorWithErrno(EINVAL, "cannot save state of invalid magazine %d", mag_bay);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
+   }
+   /* Build path to state file */
+   snprintf(sname, sizeof(sname), "%s%sbay_state-%d", conf.work_dir.c_str(), DIR_DELIM, mag_bay);
+   /* Remove magazine state files for unmounted magazines */
+   if (mountpoint.empty() || mslot.empty()) {
+      unlink(sname);
+      return 0;
+   }
+   /* Write state file for mounted magazine */
+   old_mask = umask(027);
    FS = fopen(sname, "w");
    if (!FS) {
       /* Unable to open state file for writing */
-      return -1;
+      rc = errno;
+      umask(old_mask);
+      verr.SetErrorWithErrno(rc, "cannot open magazine %d state file for writing", mag_bay);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
    }
-   /* Save magazine name (directory or UUID) */
-   if (fprintf(FS, "%s\n", mag_name) < 0) {
+   /* Save magazine device (directory or UUID), number of volumes, and start of
+    * virtual slot range it is assigned */
+   if (fprintf(FS, "%s,%d,%d\n", mag_dev.c_str(), num_slots, start_slot) < 0) {
       /* I/O error writing state file */
+      rc = errno;
       fclose(FS);
-      return -1;
+      unlink(sname);
+      umask(old_mask);
+      verr.SetErrorWithErrno(rc, "cannot write to magazine %d state file", mag_bay);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
    }
    fclose(FS);
+   umask(old_mask);
+   log.Notice("saved state of magazine %d", mag_bay);
    return 0;
 }
 
+
+/*-------------------------------------------------
+ *  Method to restore state of magazine from a file in the work
+ *  directory named "bay_state-N", where N is the bay number.
+ *  On success returns zero, otherwise sets lasterr and
+ *  returns errno.
+ *-------------------------------------------------*/
 int MagazineState::restore()
 {
-   char sname[PATH_MAX], vname[256];
-   int magnum;
+   int rc;
+   tString line, word;
    struct stat st;
    FILE *FS;
+   size_t p;
+   char sname[4096];
 
-   if (bay_ndx < 1) return -1;
-   mag_number = 0;
-   memset(mag_name, 0, sizeof(mag_name));
-   memset(mountpoint, 0, sizeof(mountpoint));
+   if (mag_bay < 0) {
+      verr.SetErrorWithErrno(EINVAL, "cannot restore state of invalid magazine %d", mag_bay);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
+   }
+   clear();
+   prev_num_slots = 0;
+   prev_start_slot = 0;
+   snprintf(sname, sizeof(sname), "%s%sbay_state-%d", conf.work_dir.c_str(), DIR_DELIM, mag_bay);
 
    /* Check for existing state file */
-   snprintf(sname, sizeof(sname), "%s%sbay%d", conf.work_dir, DIR_DELIM, bay_ndx);
    if (stat(sname, &st)) {
-      /* state file not found, try to create unloaded state */
-      if (save()) {
-         /* unable to write state file */
-         return -1;
-      }
-      /* On first use, bay is in unloaded state */
+      /* magazine bay state file not found, so bay did not previously
+       * contain a magazine */
       return 0;
    }
-   /* Read magazine name from state file */
+   /* Read bay state file */
    FS = fopen(sname, "r");
-   if (!FS) return -1;   /* No read permission */
-   if (!fgets(vname, sizeof(vname), FS)) {
-      if (ferror(FS)) {
-         /* error reading state file */
+   if (!FS) {
+      /* No read permission? */
+      rc = errno;
+      verr.SetErrorWithErrno(rc, "cannot open magazine %d state file for reading", mag_bay);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
+   }
+   if (tGetLine(line, FS) == NULL) {
+      rc = errno;
+      if (!feof(FS)) {
+         /* error reading bay state file */
          fclose(FS);
-         return -1;
+         verr.SetErrorWithErrno(rc, "error reading magazine %d state file", mag_bay);
+         log.Error("ERROR! %s", verr.GetErrorMsg());
+         return rc;
       }
-      vname[0] = '\0';
    }
    fclose(FS);
-   /* remove trailing newline */
-   strip_whitespace(vname, sizeof(vname));
-   /* restore name of last loaded magazine from state file */
-   strncpy(mag_name, vname, sizeof(mag_name));
+
+   /* Get magazine device (UUID or path specified in config) */
+   tStrip(tRemoveEOL(line));
+   p = 0;
+   if (tParseCSV(word, line, p) <= 0) {
+      /* bay state file should not be empty, assume it didn't exist */
+      log.Warning("WARNING! magazine %d state file was empty, deleting it", mag_bay);
+      unlink(sname);
+      return 0;
+   }
+   if (mag_dev != word) {
+      /* Order of mag bays has changed in config file so ignore old state */
+      unlink(sname);
+      return 0;
+   }
+
+   /* Get number of slots */
+   if (tParseCSV(word, line, p) <= 0) {
+      /* Bay state file is corrupt.
+       * Treat as if it was not mounted at last invocation */
+      clear();
+      log.Warning("WARNING! magazine %d state file corrupt, deleting it", mag_bay);
+      unlink(sname);
+      return 0;
+   }
+   if (!isdigit(word[0])) {
+      /* Corrupt bay state file, assume it doesn't exist */
+      clear();
+      unlink(sname);
+      log.Warning("WARNING! magazine %d state file has invalid number of slots field, deleting it", mag_bay);
+      return 0;
+   }
+   prev_num_slots = (int)strtol(word.c_str(), NULL, 10);
+   if (prev_num_slots < 0) {
+      /* Corrupt bay state file, assume it doesn't exist */
+      clear();
+      prev_num_slots = 0;
+      unlink(sname);
+      log.Warning("WARNING! magazine %d state file has invalid number of slots field, deleting it", mag_bay);
+      return 0;
+   }
+
+   /* Get virtual slot number offset */
+   if (tParseCSV(word, line, p) <= 0) {
+      /* Bay state file is corrupt.
+       * Treat as if it was not mounted at last invocation */
+      clear();
+      prev_num_slots = 0;
+      log.Warning("WARNING! magazine %d state file corrupt, deleting it", mag_bay);
+      unlink(sname);
+      return 0;
+   }
+   if (!isdigit(word[0])) {
+      /* Corrupt bay state file, assume it doesn't exist */
+      clear();
+      prev_num_slots = 0;
+      unlink(sname);
+      log.Warning("WARNING! magazine %d state file has invalid virtual slot assignment field, deleting it",
+            mag_bay);
+      return 0;
+   }
+   prev_start_slot = (int)strtol(word.c_str(), NULL, 10);
+   if (prev_start_slot <= 0) {
+      /* Corrupt bay state file, assume it doesn't exist */
+      clear();
+      prev_num_slots = 0;
+      prev_start_slot = 0;
+      unlink(sname);
+      log.Warning("WARNING! magazine %d state file has invalid virtual slot assignment field, deleting it",
+            mag_bay);
+      return 0;
+   }
+   log.Notice("restored state of magazine %d", mag_bay);
    return 0;
 }
+
+
+/*-------------------------------------------------
+ *  Method to update a magazine from vchanger version 0.x format
+ *  to the format used with version 1.0.0 or higher.
+ *  Return values are:
+ *       0    Success
+ *-------------------------------------------------*/
+int MagazineState::UpdateMagazineFormat()
+{
+   FILE *fs;
+   DIR *dir;
+   struct dirent *de;
+   struct stat st;
+   tString str, fname, lname, vname;
+   int drv;
+
+   /* Rename driveN files to their volume file name */
+   dir = opendir(mountpoint.c_str());
+   if (!dir) return -1;
+   de = readdir(dir);
+   while (de) {
+      /* Skip if not regular file */
+      tFormat(fname, "%s%s%s", mountpoint.c_str(), DIR_DELIM, de->d_name);
+      stat(fname.c_str(), &st);
+      if (!S_ISREG(st.st_mode)) {
+         de = readdir(dir);
+         continue;
+      }
+      /* Skip index file */
+      if (tCaseCmp(de->d_name, "index") == 0) {
+         de = readdir(dir);
+         continue;
+      }
+      str = de->d_name;
+      if (str.find("drive") == 0) {
+         str.erase(0, 5);
+         if (str.find_first_of("0123456789") == tString::npos) {
+            de = readdir(dir);
+            continue;
+         }
+         if (str.find_first_not_of("0123456789") != tString::npos) {
+            de = readdir(dir);
+            continue;
+         }
+         drv = (int)strtol(str.c_str(), NULL, 10);
+         tFormat(lname, "%s%sloaded%d", mountpoint.c_str(), DIR_DELIM, drv);
+         fs = fopen(lname.c_str(), "r");
+         if (fs == NULL) {
+            verr.SetErrorWithErrno(errno, "failed to find loaded%d file when updating magazine %d", drv, mag_bay);
+            log.Error("ERROR! %s", verr.GetErrorMsg());
+            de = readdir(dir);
+            continue;
+         }
+         tGetLine(str, fs);
+         fclose(fs);
+         if (str.empty()) {
+            verr.SetError(-1, "loaded%d file empty when updating magazine %d", drv, mag_bay);
+            log.Error("ERROR! %s", verr.GetErrorMsg());
+            de = readdir(dir);
+            continue;
+         }
+         tStrip(tRemoveEOL(str));
+         tFormat(vname, "%s%s%s", mountpoint.c_str(), DIR_DELIM, str.c_str());
+         if (rename(fname.c_str(), vname.c_str())) {
+            verr.SetError(EINVAL, "unable to rename 'drive%d' on magazine %d",
+                           drv, mag_bay);
+            log.Error("ERROR! %s", verr.GetErrorMsg());
+         }
+      }
+      de = readdir(dir);
+   }
+   closedir(dir);
+
+   /* Delete loadedN files */
+   dir = opendir(mountpoint.c_str());
+   de = readdir(dir);
+   while (de) {
+      str = de->d_name;
+      /* Skip if not regular file */
+      tFormat(fname, "%s%s%s", mountpoint.c_str(), DIR_DELIM, de->d_name);
+      stat(fname.c_str(), &st);
+      if (!S_ISREG(st.st_mode)) {
+         de = readdir(dir);
+         continue;
+      }
+      if (str.find("loaded") == 0) {
+         str.erase(0, 6);
+         if (str.find_first_of("0123456789") == tString::npos) {
+            de = readdir(dir);
+            continue;
+         }
+         if (str.find_first_not_of("0123456789") != tString::npos) {
+            de = readdir(dir);
+            continue;
+         }
+         unlink(fname.c_str());
+      }
+      de = readdir(dir);
+   }
+   closedir(dir);
+
+   /* Delete index file */
+   tFormat(fname, "%s%sindex", mountpoint.c_str(), DIR_DELIM);
+   unlink(fname.c_str());
+
+   log.Warning("magaine %d updated from old format", mag_bay);
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to determine mountpoint of magazine and assign its volume files
+ *  to magazine slots. Regular files on the magazine are assigned slots in
+ *  ascending alphanumeric order by filename beginning with magazine slot zero.
+ *  If the magazine's device string begins with "UUID:" (case insensitive),
+ *  then it specifies the UUID of a file system on a disk partition to be used
+ *  as the virtual magazine. Otherwise, it specifies a directory to be used as
+ *  the virtual magazine. If a UUID is given, then the system is queried to
+ *  determine the mountpoint of the filesystem with the given UUID. The magazine
+ *  device must already be mounted or configured to be auto-mounted.
+ *  Return values are:
+ *       0    Magazine assigned successfully
+ *      -1    system error
+ *      -2    parameter error
+ *      -3    magname not found or not mounted
+ *      -5    permission denied
+ *-------------------------------------------------*/
+int MagazineState::Mount()
+{
+   int rc, s;
+   DIR *dir;
+   struct dirent *de;
+   struct stat st;
+   tString fname, line, path;
+   MagazineSlot v;
+   std::list<tString> vname;
+   std::list<tString>::iterator p;
+   char buf[4096];
+
+   clear();
+   if (tCaseFind(mag_dev, "uuid:") != 0) {
+      /* magazine specified as filesystem path */
+      mountpoint = mag_dev;
+   } else {
+      /* magazine specified as UUID, so query OS for mountpoint */
+      rc = GetMountpointFromUUID(buf, sizeof(buf), mag_dev.substr(5).c_str());
+      mountpoint = buf;
+      if (rc == -3 || rc == -4) {
+         /* magazine device not found or not mounted */
+         mountpoint.clear();
+         return -3;
+      }
+      if (rc) {
+         verr.SetError(rc, "system error determining mountpoint from UUID");
+         log.Error("ERROR! %s", verr.GetErrorMsg());
+         mountpoint.clear();
+         return -1;
+      }
+   }
+
+   /* Check mountpoint exists */
+   if (access(mountpoint.c_str(), F_OK) != 0) {
+      /* Mountpoint not found */
+      mountpoint.clear();
+      return -3;
+   }
+
+   /* Ensure access to magazine mountpoint */
+   if (access(mountpoint.c_str(), W_OK) != 0) {
+      verr.SetError(rc, "no write access to directory %s", mountpoint.c_str());
+      log.Error("%s", verr.GetErrorMsg());
+      mountpoint.clear();
+      return -5;
+   }
+
+   /* If this magazine contains a file named index then assume it was
+    * created by an old version of vchanger and prepare it for use
+    * by removing meta-information files. */
+   tFormat(fname, "%s%sindex", mountpoint.c_str(), DIR_DELIM);
+   if (access(fname.c_str(), F_OK) == 0) {
+      UpdateMagazineFormat();
+   }
+
+   /* Build list of this magazine's volume files */
+   dir = opendir(mountpoint.c_str());
+   if (!dir) {
+      /* could not open mountpoint dir */
+      rc = errno;
+      verr.SetErrorWithErrno(rc, "cannot open directory '%s'", mountpoint.c_str());
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      mountpoint.clear();
+      if (rc == ENOTDIR || rc == ENOENT) return -3;
+      if (rc == EACCES) return -5;
+      return -1;
+   }
+   de = readdir(dir);
+   while (de) {
+      /* Skip if not regular file */
+      tFormat(path, "%s%s%s", mountpoint.c_str(), DIR_DELIM, de->d_name);
+      stat(path.c_str(), &st);
+      if (!S_ISREG(st.st_mode)) {
+         de = readdir(dir);
+         continue;
+      }
+      /* Writable regular files on magazine are considered volume files */
+      if (access(path.c_str(), W_OK) == 0) {
+         vname.push_back(de->d_name);
+      }
+      de = readdir(dir);
+   }
+   closedir(dir);
+   if (vname.empty()) {
+      /* Magazine is ready for use but has no volumes */
+      start_slot = 0;
+      num_slots = 0;
+      return 0;
+   }
+   /* Assign volume files to slots in alphanumeric order */
+   vname.sort();
+   s = 0;
+   for (p = vname.begin(); p != vname.end(); p++) {
+      v.mag_bay = mag_bay;
+      v.label = *p;
+      v.mag_slot = s++;
+      mslot.push_back(v);
+   }
+   num_slots = (int)mslot.size();
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to get path to volume file in a magazine slot
+ *  On success returns path, else returns empty string
+ *-------------------------------------------------*/
+const char* MagazineState::GetVolumeLabel(int ms) const
+{
+   if (ms >= 0 && ms < (int)mslot.size() && !mslot[ms].empty()) {
+      return mslot[ms].label.c_str();
+   }
+   return "";
+}
+
+
+/*-------------------------------------------------
+ *  Method to get path to volume file in a magazine slot
+ *  On success returns path, else returns empty string
+ *-------------------------------------------------*/
+tString MagazineState::GetVolumePath(int ms)
+{
+   tString result;
+   if (ms >= 0 && ms < (int)mslot.size()) {
+      tFormat(result, "%s%s%s", mountpoint.c_str(), DIR_DELIM, GetVolumeLabel(ms));
+   }
+   return result;
+}
+
+
+/*-------------------------------------------------
+ *  Method to get path to volume file in a magazine slot
+ *  On success returns path, else returns empty string
+ *-------------------------------------------------*/
+const char* MagazineState::GetVolumePath(tString &path, int ms)
+{
+   path = GetVolumePath(ms);
+   return path.c_str();
+}
+
+
+/*-------------------------------------------------
+ *  Method to get magazine slot containing a label.
+ *  On success returns magazine slot number, else negative.
+ *-------------------------------------------------*/
+int MagazineState::GetVolumeSlot(const char *label)
+{
+   int n;
+   for (n = 0; n < num_slots; n++) {
+      if (mslot[n].label == label) return n;
+   }
+   return -1;
+}
+
+
+/*-------------------------------------------------
+ *  Method to create a new volume file. 'vol_label_in' gives the
+ *  name of the new volume file to create on the magazine. If empty,
+ *  then a volume file name is generated based on the magazine's name.
+ *  A new magazine slot is appended to hold the new volume and a new
+ *  virtual slot is appended that maps to the new magazine slot.
+ *  On success returns zero, else sets lasterr and returns negative
+ *-------------------------------------------------*/
+int MagazineState::CreateVolume(const char *vol_label_in)
+{
+   int rc = 0, slot;
+   FILE *fs;
+   tString fname, label(vol_label_in);
+   MagazineSlot new_mslot;
+
+   if (label.empty()) {
+      slot = (int)mslot.size();
+      --slot;
+      while(rc == 0) {
+         ++slot;
+         tFormat(label, "%s_%d_%d", conf.storage_name.c_str(), mag_bay, slot);
+         tFormat(fname, "%s%s%s", mountpoint.c_str(), DIR_DELIM, label.c_str());
+         if (access(fname.c_str(), F_OK)) rc = errno;
+         else rc = 0;
+      }
+   } else {
+      tFormat(fname, "%s%s%s", mountpoint.c_str(), DIR_DELIM, label.c_str());
+      if (access(fname.c_str(), F_OK)) rc = errno;
+      else rc = 0;
+      if (rc == 0) {
+         verr.SetErrorWithErrno(rc, "volume %s already exists on magazine %d", label.c_str(), mag_bay);
+         return EEXIST;
+      }
+   }
+   if (rc != ENOENT) {
+      verr.SetErrorWithErrno(rc, "error %d accessing volumes on magazine %d", rc, mag_bay);
+      log.Error("MagazineState::CreateVolume: %s", verr.GetErrorMsg());
+      return -1;
+   }
+   /* Create new volume file on magazine */
+   fs = fopen(fname.c_str(), "w");
+   if (!fs) {
+      rc = errno;
+      verr.SetErrorWithErrno(rc, "error %d creating volume on magazine %d", rc, mag_bay);
+      log.Error("MagazineState::CreateVolume: %s", verr.GetErrorMsg());
+      return -1;
+   }
+   fclose(fs);
+   new_mslot.mag_bay = mag_bay;
+   new_mslot.mag_slot = mslot.size();
+   new_mslot.label = label;
+   mslot.push_back(new_mslot);
+   ++num_slots;
+   log.Notice("created volume '%s' on magazine %d (%s)", label.c_str(), mag_bay, mag_dev.c_str());
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to assign bay number and device for this magazine
+ *-------------------------------------------------*/
+void MagazineState::SetBay(int bay, const char *dev)
+{
+   mag_bay = bay;
+   mag_dev = dev;
+   clear();
+}
+
+
+
+///////////////////////////////////////////////////
+//  Class VirtualSlot
+///////////////////////////////////////////////////
+
+VirtualSlot::VirtualSlot(const VirtualSlot &b)
+{
+   vs = b.vs;
+   drv = b.drv;
+   mag_bay = b.mag_bay;
+   mag_slot = b.mag_slot;
+}
+
+VirtualSlot& VirtualSlot::operator=(const VirtualSlot &b)
+{
+   if (this != &b) {
+      vs = b.vs;
+      drv = b.drv;
+      mag_bay = b.mag_bay;
+      mag_slot = b.mag_slot;
+   }
+   return *this;
+}
+
+
+/*-------------------------------------------------
+ *  Method to clear an virtual slot's values
+ *-------------------------------------------------*/
+void VirtualSlot::clear()
+{
+   drv = -1;
+   mag_bay = -1;
+   mag_slot = -1;
+}
+
+
+
+///////////////////////////////////////////////////
+//  Class DriveState
+///////////////////////////////////////////////////
+
+DriveState::DriveState(const DriveState &b)
+{
+   drv = b.drv;
+   vs = b.vs;
+}
+
+DriveState& DriveState::operator=(const DriveState &b)
+{
+   if (&b != this) {
+      drv = b.drv;
+      vs = b.vs;
+   }
+   return *this;
+}
+
+/*
+ *  Method to clear a drive's values
+ */
+void DriveState::clear()
+{
+   /* do not clear drive number */
+   vs = -1;
+}
+
+
+
+///////////////////////////////////////////////////
+//  Class DynamicConfig
+///////////////////////////////////////////////////
+
+/*-------------------------------------------------
+ *  Method to save dynamic configuration info to a file in
+ *  the work directory named dynamic.conf.
+ *-------------------------------------------------*/
+void DynamicConfig::save()
+{
+   mode_t old_mask;
+   int rc;
+   FILE *FS;
+   char sname[4096];
+
+   if (max_slot < 10) max_slot = 10;
+   /* Build path to dynamic.conf file */
+   snprintf(sname, sizeof(sname), "%s%sdynamic.conf", conf.work_dir.c_str(), DIR_DELIM);
+   /* Write dynamic config info */
+   old_mask = umask(027);
+   FS = fopen(sname, "w");
+   if (!FS) {
+      /* Unable to open dynamic.conf file for writing */
+      rc = errno;
+      umask(old_mask);
+      log.Error("ERROR! cannot open dynamic.conf file for writing (errno=%d)", rc);
+      return;
+   }
+   /* Save max slot number in use to dynamic configuration */
+   if (fprintf(FS, "max_used_slot=%d\n", max_slot) < 0) {
+      /* I/O error writing dynamic.conf file */
+      rc = errno;
+      fclose(FS);
+      unlink(sname);
+      umask(old_mask);
+      log.Error("ERROR! i/o error writing dynamic.conf file (errno=%d)", rc);
+      return;
+   }
+   fclose(FS);
+   umask(old_mask);
+   log.Notice("saved dynamic configuration (max used slot: %d)", max_slot);
+}
+
+
+/*-------------------------------------------------
+ *  Method to restore dynamic configuration info.
+ *-------------------------------------------------*/
+void DynamicConfig::restore()
+{
+   int rc;
+   tString line;
+   struct stat st;
+   FILE *FS;
+   char sname[4096];
+
+   if (max_slot < 10) max_slot = 10;
+   /* Build path to dynamic.conf file */
+   snprintf(sname, sizeof(sname), "%s%sdynamic.conf", conf.work_dir.c_str(), DIR_DELIM);
+   /* Check for existing file */
+   if (stat(sname, &st)) {
+      /* dynamic configuration file not found */
+      return;
+   }
+   /* Read dynamic.conf file */
+   FS = fopen(sname, "r");
+   if (!FS) {
+      /* No read permission? */
+      rc = errno;
+      log.Error("ERROR! cannot open dynamic.conf file for restore (errno=%d)", rc);
+      return;
+   }
+   if (tGetLine(line, FS) == NULL) {
+      rc = errno;
+      if (!feof(FS)) {
+         /* error reading bay state file */
+         fclose(FS);
+         log.Error("ERROR! i/o error reading dynamic.conf file (errno=%d)", rc);
+         return;
+      }
+   }
+   fclose(FS);
+
+   /* Get magazine device (UUID or path specified in config) */
+   tStrip(tRemoveEOL(line));
+   if (tCaseFind(line, "max_used_slot") == 0) {
+      max_slot = (int)strtol(line.substr(14).c_str(), NULL, 10);
+      if (max_slot < 10) max_slot = 10;
+   }
+}
+

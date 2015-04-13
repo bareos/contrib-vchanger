@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2014 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -24,47 +24,47 @@
 #ifndef _VCONF_H_
 #define _VCONF_H_ 1
 
-#define DEFAULT_VIRTUAL_DRIVES 1
-#define DEFAULT_SLOTS_PER_MAG 10
-#define DEFAULT_MAGAZINE_BAYS 1
-#define DEFAULT_CHANGER_NAME "vchanger"
-#define DEFAULT_LOGFILE ""
-#define DEFAULT_LOGLEVEL 3
-#define MAX_MAGAZINE_BAYS 32
-#define MAX_DRIVES 16
-#define MAX_SLOTS 9999
-#define MAX_MAGAZINES 128
-#ifdef HAVE_WINDOWS_H
-#define DEFAULT_CONFIG_FILE "\\Bacula\\vchanger.conf"
-#define DEFAULT_WORK_DIR "\\Bacula\\Work"
-#else
-#define DEFAULT_CONFIG_FILE "/etc/bacula/vchanger.conf"
-#define DEFAULT_WORK_DIR "/var/lib/bacula"
-#endif
+#include "inifile.h"
+
+#define DEFAULT_LOG_LEVEL 3
+#define DEFAULT_USER "bacula"
+#define DEFAULT_GROUP "tape"
+#define DEFAULT_BCONSOLE "/usr/sbin/bconsole"
+#define DEFAULT_STORAGE_NAME "vchanger"
+#define DEFAULT_POOL "Scratch"
 
 /* Configuration values */
 
 class VchangerConfig
 {
 public:
-   char *magazine[MAX_MAGAZINES + 1];
-   char changer_name[128];
-   char work_dir[PATH_MAX];
-   char logfile[PATH_MAX];
-   char automount_dir[PATH_MAX];
+   IniFile keyword;
+   tString work_dir;
+   tString config_file;
+   tString logfile;
    int log_level;
-   int known_magazines;
-   int magazine_bays;
-   int virtual_drives;
-   int slots_per_mag;
-   int slots;
+   tString user;
+   tString group;
+   tString bconsole;
+   tString bconsole_config;
+   tString storage_name;
+   tString def_pool;
+   tStringArray magazine;
 public:
    VchangerConfig();
-   ~VchangerConfig();
+   virtual ~VchangerConfig() {}
    bool Read(const char *cfile);
-private:
-   void SetDefaults();
-   int vconf_getline(FILE *fs, char *val, size_t val_size);
+   inline bool Read(const tString &cfile) { return Read(cfile.c_str()); }
+   bool Validate();
 };
+
+#ifndef __VCONF_SOURCE
+extern VchangerConfig conf;
+extern char DEFAULT_LOGDIR[4096];
+extern char DEFAULT_STATEDIR[4096];
+#else
+char DEFAULT_LOGDIR[4096];
+char DEFAULT_STATEDIR[4096];
+#endif
 
 #endif /* _VCONF_H_ */

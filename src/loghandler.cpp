@@ -1,150 +1,96 @@
 /* loghandler.cpp
  *
- *  This file is part of vchanger by Josh Fisher.
+ *  Copyright (C) 2013-2014 Josh Fisher
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  This program is free software. You may redistribute it and/or modify
+ *  it under the terms of the GNU General Public License, as published by
+ *  the Free Software Foundation; either version 2, or (at your option)
+ *  any later version.
  *
- *  vchanger is free software.
- *  You may redistribute it and/or modify it under the terms of the
- *  GNU General Public License version 2, as published by the Free
- *  Software Foundation.
- *
- *  vchanger is distributed in the hope that it will be useful,
+ *  This program is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *  See the GNU General Public License for more details.
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ *  General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with vchanger.  See the file "COPYING".  If not,
- *  write to:  The Free Software Foundation, Inc.,
- *             59 Temple Place - Suite 330,
- *             Boston,  MA  02111-1307, USA.
- *
- *  Provides a class for logging messages to a file
- */
+ *  along with this program.  See the file "COPYING".  If not,
+ *  see <http://www.gnu.org/licenses/>.
+*/
 
-#include "vchanger.h"
-#include "loghandler.h"
-#include <stdarg.h>
-#include <string.h>
+#include "config.h"
+#include "compat_defs.h"
+#ifdef HAVE_STDIO_H
+#include <stdio.h>
+#endif
+#ifdef HAVE_TIME_H
 #include <time.h>
+#endif
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_STDARG_H
+#include <stdarg.h>
+#endif
+#ifndef HAVE_LOCALTIME_R
+#include "compat/localtime_r.h"
+#endif
+#define LOGHANDLER_SOURCE 1
+#include "loghandler.h"
 
-///////////////////////////////////////////////////
-//  Class LogHandler
-///////////////////////////////////////////////////
+LogHandler log;
 
-LogHandler::LogHandler()
+LogHandler::LogHandler() : use_syslog(false), max_debug_level(LOG_WARNING), errfs(stderr)
 {
-   use_syslog = false;
-   must_close_logfile = false;
-   max_debug_level = LOG_ERR;
-   logfile = NULL;
+#ifdef HAVE_PTHREAD_H
+   pthread_mutex_init(&mut, NULL);
+#endif
 }
 
 LogHandler::~LogHandler()
 {
-#ifndef _SPLINT_
    if (use_syslog) closelog();
+#ifdef HAVE_PTHREAD_H
+   pthread_mutex_destroy(&mut);
 #endif
-   if (logfile && must_close_logfile) {
-      fclose(logfile);
-   }
 }
 
-#ifndef _SPLINT_
-/*-------------------------------------------------
- *  Method to open logging to a syslog facility
- *------------------------------------------------*/
-void LogHandler::OpenLog(int facility, const char *ident, int max_level, int syslog_options)
+void LogHandler::OpenLog(FILE *fs, int max_level)
 {
-   CloseLog();
-   if (facility < LOG_DAEMON || facility > LOG_USER) {
-      facility = LOG_DAEMON;
-   }
-   if (max_level < LOG_ERR || max_level > LOG_INFO) {
-      max_level = LOG_INFO;
-   }
+   Lock();
+   if (use_syslog) closelog();
+   if (max_level < LOG_EMERG || max_level > LOG_DEBUG) max_level = LOG_DEBUG;
+   errfs = fs;
+   use_syslog = false;
+   max_debug_level = max_level;
+   Unlock();
+}
+
+void LogHandler::OpenLog(const char *ident, int facility, int max_level,
+                         int syslog_options)
+{
+   Lock();
+   if (use_syslog) closelog();
+   if (facility < LOG_KERN || facility > LOG_LOCAL7) facility = LOG_DAEMON;
+   if (max_level < LOG_EMERG || max_level > LOG_DEBUG) max_level = LOG_DEBUG;
    openlog(ident, syslog_options, facility);
    use_syslog = true;
+   errfs = stderr;
+   if (errfs == NULL) errfs = stderr;
    max_debug_level = max_level;
-}
-#endif
-
-/*-------------------------------------------------
- *  Method to open logging to a file
- *------------------------------------------------*/
-void LogHandler::OpenLog(const char *fname, int max_level)
-{
-   CloseLog();
-   if (max_level < LOG_ERR || max_level > LOG_INFO) {
-      max_level = LOG_INFO;
-   }
-   max_debug_level = max_level;
-   if (fname && strlen(fname)) {
-      logfile = fopen(fname, "a");
-      if (logfile) must_close_logfile = true;
-   }
+   Unlock();
 }
 
-/*-------------------------------------------------
- *  Method to open logging to an already opened file
- *------------------------------------------------*/
-void LogHandler::OpenLog(FILE *fslog, int max_level)
-{
-   CloseLog();
-   if (max_level < LOG_ERR || max_level > LOG_INFO) {
-      max_level = LOG_INFO;
-   }
-   max_debug_level = max_level;
-   logfile = fslog;
-}
-
-/*-------------------------------------------------
- *  Method to close the log object. Closes the logfile or
- *  syslog.
- *------------------------------------------------*/
-void LogHandler::CloseLog()
-{
-#ifndef _SPLINT_
-   if (use_syslog) {
-      closelog();
-   }
-#endif
-   if (logfile) {
-      if (must_close_logfile) {
-         fclose(logfile);
-      }
-      logfile = NULL;
-   }
-   must_close_logfile = false;
-   use_syslog = false;
-}
-
-/*-------------------------------------------------
- *  Method to log message of LOG_ERR level
- *------------------------------------------------*/
-void LogHandler::Error(const char *fmt, ...)
+void LogHandler::Emergency(const char *fmt, ...)
 {
    va_list vl;
    va_start(vl, fmt);
-   WriteLog(LOG_ERR, fmt, vl);
+   WriteLog(LOG_EMERG, fmt, vl);
    va_end(vl);
 }
 
-/*-------------------------------------------------
- *  Method to log message of LOG_CRIT level
- *------------------------------------------------*/
-void LogHandler::Critical(const char *fmt, ...)
-{
-   va_list vl;
-   va_start(vl, fmt);
-   WriteLog(LOG_CRIT, fmt, vl);
-   va_end(vl);
-}
-
-/*-------------------------------------------------
- *  Method to log message of LOG_ALERT level
- *------------------------------------------------*/
 void LogHandler::Alert(const char *fmt, ...)
 {
    va_list vl;
@@ -153,9 +99,22 @@ void LogHandler::Alert(const char *fmt, ...)
    va_end(vl);
 }
 
-/*-------------------------------------------------
- *  Method to log message of LOG_WARNING level
- *------------------------------------------------*/
+void LogHandler::Critical(const char *fmt, ...)
+{
+   va_list vl;
+   va_start(vl, fmt);
+   WriteLog(LOG_CRIT, fmt, vl);
+   va_end(vl);
+}
+
+void LogHandler::Error(const char *fmt, ...)
+{
+   va_list vl;
+   va_start(vl, fmt);
+   WriteLog(LOG_ERR, fmt, vl);
+   va_end(vl);
+}
+
 void LogHandler::Warning(const char *fmt, ...)
 {
    va_list vl;
@@ -164,9 +123,6 @@ void LogHandler::Warning(const char *fmt, ...)
    va_end(vl);
 }
 
-/*-------------------------------------------------
- *  Method to log message of LOG_NOTICE level
- *------------------------------------------------*/
 void LogHandler::Notice(const char *fmt, ...)
 {
    va_list vl;
@@ -175,9 +131,6 @@ void LogHandler::Notice(const char *fmt, ...)
    va_end(vl);
 }
 
-/*-------------------------------------------------
- *  Method to log message of LOG_INFO level
- *------------------------------------------------*/
 void LogHandler::Info(const char *fmt, ...)
 {
    va_list vl;
@@ -186,39 +139,68 @@ void LogHandler::Info(const char *fmt, ...)
    va_end(vl);
 }
 
-/*-------------------------------------------------
- *  Protected method to handle actual log i/o.
- *------------------------------------------------*/
-void LogHandler::WriteLog(int priority, const char *fmt, va_list &vl)
+void LogHandler::Debug(const char *fmt, ...)
+{
+   va_list vl;
+   va_start(vl, fmt);
+   WriteLog(LOG_DEBUG, fmt, vl);
+   va_end(vl);
+}
+
+void LogHandler::MajorDebug(const char *fmt, ...)
+{
+#ifdef MAJOR_DEBUG
+   va_list vl;
+   va_start(vl, fmt);
+   WriteLog(LOG_DEBUG, fmt, vl);
+   va_end(vl);
+#endif
+}
+
+// Method to acquire mutex lock
+void LogHandler::Lock()
+{
+#ifdef HAVE_PTHREAD_H
+   pthread_mutex_lock(&mut);
+#endif
+}
+
+// Method to release mutex lock
+void LogHandler::Unlock()
+{
+#ifdef HAVE_PTHREAD_H
+   pthread_mutex_unlock(&mut);
+#endif
+}
+
+// Method to write to log
+void LogHandler::WriteLog(int priority, const char *fmt, va_list vl)
 {
    size_t n;
-   char dstr[256];
-   time_t tcur;
-#ifndef _SPLINT_
-   char buff[4096];
-#endif
-   if (!fmt) {
+   struct tm bt;
+   time_t t;
+   char buf[1024];
+   Lock();
+   if (priority > max_debug_level || priority < LOG_EMERG || !fmt) {
+      Unlock();
       return;
    }
-   if (priority > max_debug_level || priority < LOG_ERR) {
-      return;
-   }
-#ifndef _SPLINT_
-   if (use_syslog) {
-      vsnprintf(buff, sizeof(buff), fmt, vl);
-      syslog(priority, "%s", buff);
-      return;
-   }
-#endif
-   if (logfile) {
-      tcur = time(NULL);
-      ctime_r(&tcur, dstr);
-      n = strlen(dstr);
-      if (n) {
-         dstr[n - 1] = 0;
-         fprintf(logfile, "%s ", dstr);
+   t = time(NULL);
+   localtime_r(&t, &bt);
+   strftime(buf, 100, "%b %d %T: ", &bt);
+   strncpy(buf + strlen(buf), fmt, sizeof(buf) - strlen(buf));
+   if (use_syslog) vsyslog(priority, buf, vl);
+   else {
+      n = strlen(buf);
+      if (!n) {
+         fprintf(errfs, "\n");
+      } else {
+         vfprintf(errfs, buf, vl);
+         if (buf[n - 1] != '\n') {
+            fprintf(errfs, "\n");
+         }
+         fflush(errfs);
       }
-      vfprintf(logfile, fmt, vl);
-      if (!strlen(fmt) || fmt[strlen(fmt) - 1] != '\n') fprintf(logfile, "\n");
    }
+   Unlock();
 }

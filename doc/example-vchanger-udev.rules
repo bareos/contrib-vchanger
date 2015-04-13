@@ -1,0 +1,5 @@
+# This file contains udev rules for automounting drives assigned to vchanger
+#
+# Rules for magazine 0 (uuid:7b4526c4-d8e9-48ba-b227-f67f855a0dc7)
+ACTION=="add",SUBSYSTEM=="block", ENV{ID_FS_UUID}=="7b4526c4-d8e9-48ba-b227-f67f855a0dc7", RUN+="/usr/libexec/vchanger/vchanger-launch-mount.sh 7b4526c4-d8e9-48ba-b227-f67f855a0dc7"
+ACTION=="remove",SUBSYSTEM=="block", ENV{ID_FS_UUID}=="7b4526c4-d8e9-48ba-b227-f67f855a0dc7", RUN+="/usr/libexec/vchanger/vchanger-launch-umount.sh 7b4526c4-d8e9-48ba-b227-f67f855a0dc7"

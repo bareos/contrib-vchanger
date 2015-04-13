@@ -2,7 +2,7 @@
  *
  *  This file is part of vchanger by Josh Fisher.
  *
- *  vchanger copyright (C) 2008-2010 Josh Fisher
+ *  vchanger copyright (C) 2008-2015 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -25,764 +25,826 @@
  */
 
 #include "config.h"
-#ifdef HAVE_WINDOWS_H
-#include "junctions.h"
+#include "compat_defs.h"
+#ifdef HAVE_STDIO_H
+#include <stdio.h>
 #endif
-#include "vchanger.h"
-#include "util.h"
-#include "changerstate.h"
-#include "diskchanger.h"
-#include "vchanger_common.h"
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
+#include <sys/types.h>
+#endif
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_TIME_H
+#include <time.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
-#ifdef HAVE_WINDOWS_H
-char junct_msg[4096];
-unsigned int junct_err;
-#endif
+#include "compat/gettimeofday.h"
+#include "compat/readlink.h"
+#include "compat/sleep.h"
+#include "compat/symlink.h"
+#include "util.h"
+#include "loghandler.h"
+#include "bconsole.h"
+#include "diskchanger.h"
 
-
-/*-------------------------------------------------
- *  Static function to get pid of process that owns
- *  the lockfile. Returns zero if lockfile doesn't exist or
- *  if not owned. If owner process does not exist,
- *  then the lockfile is deleted and zero is returned.
- *------------------------------------------------*/
-static pid_t GetLockfileOwner(const char *lockfile)
-{
-   char tmp[PATH_MAX];
-   pid_t result = 0;
-   FILE *fs = fopen(lockfile, "r");
-   if (!fs) {
-      return 0;
-   }
-   fgets(tmp, sizeof(tmp), fs);
-   fclose(fs);
-   result = (pid_t) strtol(tmp, NULL, 10);
-   if (!result) {
-      return 0;
-   }
-   if (!unlink(lockfile)) {
-      return 0;
-   }
-   return result;
-}
-
-/*
- *  Delete symlink 'path'
- */
-static int DeleteSymlink(const char *path)
-{
-#ifdef HAVE_WINDOWS_H
-   return unlink_symlink(path);
-#else
-   return unlink(path);
-#endif
-}
 
 /*=================================================
  *  Class DiskChanger
  *=================================================*/
 
 /*-------------------------------------------------
- * default constructor
- *-------------------------------------------------*/
-DiskChanger::DiskChanger()
-{
-   memset(changer_name, 0, sizeof(changer_name));
-   memset(work_dir, 0, sizeof(work_dir));
-   magazine_bays = 0;
-   virtual_drives = 0;
-   slots_per_mag = 0;
-   slots = 0;
-   changer_lock = NULL;
-   lasterr = 0;
-   memset(lasterrmsg, 0, sizeof(lasterrmsg));
-}
-
-/*-------------------------------------------------
  * destructor
  *-------------------------------------------------*/
 DiskChanger::~DiskChanger()
 {
-   internalUnlock();
+   Unlock();
+}
+
+
+/*-------------------------------------------------
+ *  Protected method to read previous state of magazine bays.
+ *  Returns zero on success, else negative and sets lasterr
+ *-------------------------------------------------*/
+void DiskChanger::InitializeMagazines()
+{
+   int n;
+   MagazineState m;
+
+   magazine.clear();
+   for (n = 0; (size_t)n < conf.magazine.size(); n++) {
+      m.SetBay(n, conf.magazine[n].c_str());
+      m.prev_num_slots = 0;
+      m.prev_start_slot = 0;
+      magazine.push_back(m);
+      /* Restore previous slot count and starting virtual slot */
+      magazine[n].restore();
+      /* Get mountpoint and build magazine slot array  */
+      magazine[n].Mount();
+   }
+}
+
+
+/*-------------------------------------------------
+ *  Protected method to find the start of an empty range of
+ *  'count' virtual slots, adding slots if needed.
+ *  Returns the starting slot number of the range found.
+ *------------------------------------------------*/
+int DiskChanger::FindEmptySlotRange(int count)
+{
+   VirtualSlot vs;
+   int start = 0, n = 1, found = 0;
+   /* Find next empty slot */
+   while (n < (int)vslot.size() && vslot[n].mag_bay >= 0) n++;
+   start = n;
+   while (n < (int)vslot.size() && found < count) {
+      if (vslot[n].mag_bay < 0) {
+         ++found;
+         ++n;
+      } else {
+         found = 0;
+         while (n < (int)vslot.size() && vslot[n].mag_bay >= 0) n++;
+         start = n;
+      }
+   }
+   if (found >= count) return start;
+   while (found < count) {
+      vs.vs = n++;
+      vslot.push_back(vs);
+      ++found;
+   }
+   return start;
 }
 
 /*-------------------------------------------------
- *  Method to initialize changer parameters and state of magazines and virtual drives.
- *  On success, returns zero and has a lock on the changer. On error, returns negative.
- *  In either case, obtains a lock on the changer unless the lock operation itself fails.
- *  The lock will be released when the DiskChanger object is destroyed, or by directly
- *  calling the Unlock() member function.
+ *  Protected method to initialize array of virtual slot and
+ *  assign magazine volumes to virtual slots. When possible,
+ *  volumes are assigned to the same slot they were in
+ *  previously.
  *------------------------------------------------*/
-int DiskChanger::Initialize(VchangerConfig &conf)
+void DiskChanger::InitializeVirtSlots()
 {
-   int n, i, rc, bay;
-   VolumeLabel lab;
-   char *used;
-   char chngr[128], sname[PATH_MAX], tmp[PATH_MAX];
+   int s, m, v, last;
+   VirtualSlot vs;
+   bool found;
 
-   /* Set parameters from config file */
-   strncpy(changer_name, conf.changer_name, sizeof(changer_name));
-   strncpy(work_dir, conf.work_dir, sizeof(work_dir));
-   magazine_bays = conf.magazine_bays;
-   slots_per_mag = conf.slots_per_mag;
-   virtual_drives = conf.virtual_drives;
-   slots = conf.slots;
-   lasterr = 0;
-   /* Make sure we have a lock on this changer */
-   if (!Lock()) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to obtain lock for changer %s",
-            changer_name);
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   /* Create all known slots as initially empty */
+   vslot.clear();
+   for (s = 0; s <= dconf.max_slot; s++) {
+      vs.vs = s;
+      vslot.push_back(vs);
    }
-   /* Restore magazine bays from last used state */
-   used = (char*) malloc((conf.known_magazines + 1));
-   memset(used, 0, conf.known_magazines + 1);
-   for (n = 1; n <= magazine_bays; n++) {
-      magazine[n].bay_ndx = n;
-      if (magazine[n].restore()) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "system error reading bay%d file", n);
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
-      if (!strlen(magazine[n].mag_name)) {
-         vlog.Info("Bay %d was previously unloaded", n);
-         continue; /* bay was unloaded */
-      }
-      /* Find last loaded magazine in the list of magazines assigned to this changer */
-      for (i = 1; i <= conf.known_magazines; i++) {
-         if (used[i]) continue;
-         if (strcasecmp(magazine[n].mag_name, conf.magazine[i]) == 0) break;
-      }
-      if (i <= conf.known_magazines) {
-         used[i] = '1';
-         rc = magazine[n].set(conf.magazine[i], conf.automount_dir);
-         if (rc == -3) {
-            /* bay last had magazine that is no longer mounted */
-            vlog.Info("Init: magazine %s previously loaded in bay %d is no longer mounted",
-                        conf.magazine[i], n);
-            magazine[n].clear();
-         } else if (rc < 0) {
-            /* there was an error "loading" the magazine into the bay */
-            switch (rc) {
-            case -5:
-               vlog.Warning("Init: load magazine in bay %d failed, %s is corrupt", n, conf.magazine[i]);
-               break;
-            case -6:
-               vlog.Warning("Init: permissions error loading magazine %s in bay %d", conf.magazine[i], n);
-               break;
-            default:
-               vlog.Warning("Init: i/o error loading magazine %s in bay %d", conf.magazine[i], n);
-            }
-         } else {
-            vlog.Info("Init: magazine %s still loaded in bay %d", magazine[n].mag_name, magazine[n].bay_ndx);
+   /* Re-create virtual slots that existed previously if possible */
+   for (m = 0; m < (int)magazine.size(); m++) {
+      /* Create slots if needed to match max slot used by previous magazines */
+      last = magazine[m].prev_start_slot + magazine[m].prev_num_slots;
+      if (last >= (int)vslot.size()) {
+         vs.clear();
+         while ((int)vslot.size() <= last) {
+            vs.vs = (int)vslot.size();
+            vslot.push_back(vs);
          }
-      } else {
-         /* bay was last loaded with a magazine that is no longer defined
-          * as one of the magazines assigned to this changer */
-         vlog.Info("Init: magazine %s previously loaded in bay %d is no longer defined for this changer",
-                     conf.magazine[i], n);
-         magazine[n].clear();
       }
-   }
-
-   /* For each unloaded bay, try to load one of the magazines assigned to this changer */
-   for (n = 1; n <= magazine_bays; n++) {
-      if (strlen(magazine[n].mag_name)) continue;  /* skip loaded bays */
-      /* find a magazine for this bay */
-      for (i = 1; i <= conf.known_magazines; i++) {
-         if (used[i]) continue;
-         used[i] = '1';
-         rc = magazine[n].set(conf.magazine[i], conf.automount_dir);
-         if (rc == -3) {
-            vlog.Info("Init: magazine %s not mounted", conf.magazine[i]);
-            continue; /* magazine not mounted */
+      /* Check this magazine's slots */
+      if (magazine[m].empty()) {
+         log.Info("magazine %d is not mounted", m);
+         /* magazine is not currently mounted, so will have no slots assigned */
+         if (magazine[m].prev_start_slot) {
+            /* Since it was previously mounted, an 'update slots' is needed */
+            log.Warning("update slots needed. magazine %d no longer mounted; previous: %d volumes in slots %d-%d", m,
+                  magazine[m].prev_num_slots, magazine[m].prev_start_slot,
+                  magazine[m].prev_start_slot + magazine[m].prev_num_slots - 1);
+            needs_update = true;
          }
-         if (rc < 0) {
-            /* there was an error inserting the magazine into the bay */
-            switch (rc) {
-            case -5:
-               vlog.Warning("Init: load magazine in bay %d failed, %s is corrupt", n, conf.magazine[i]);
-               break;
-            case -6:
-               vlog.Warning("Init: permissions error loading magazine %s in bay %d", conf.magazine[i], n);
-               break;
-            default:
-               vlog.Warning("Init: system error loading magazine %s in bay %d", conf.magazine[i], n);
-            }
-         } else {
-            vlog.Info("Init: loaded magazine %d=%s in bay %d", magazine[n].mag_number,
-                  magazine[n].mag_name, magazine[n].bay_ndx);
+         continue;
+      }
+      /* Magazine is currently mounted, so check for change in slot assignment */
+      log.Info("magazine %d has %d volumes on %s", m, magazine[m].num_slots,
+                  magazine[m].mountpoint.c_str());
+      if (magazine[m].num_slots != magazine[m].prev_num_slots) {
+         /* Number of volumes has changed or magazine was not previously mounted, so
+          * needs new slot assignment and also 'update slots' will be needed */
+         log.Warning("update slots needed. magazine %d has %d volumes, previously had %d", m,
+                  magazine[m].num_slots, magazine[m].prev_num_slots);
+         needs_update = true;
+         continue;
+      }
+      if (magazine[m].num_slots == 0) {
+         /* Magazine has no volumes so needs no slot assignment */
+         continue;
+      }
+      /* Magazine is mounted, was previously mounted, and has the same volume count,
+       * so attempt to assign to the same slots previously assigned */
+      found = false;
+      for (v = magazine[m].prev_start_slot; v < (int)vslot.size(); v++) {
+         if (!vslot[v].empty()) {
+            found = true;
             break;
          }
       }
-      if (i > conf.known_magazines) {
-         /* no more magazines assigned to this changer, so leave remaining bays empty */
-         break;
+      if (found) {
+         /* Slot used previously has already been assigned to another magazine.
+          * Magazine will need to be assigned a new slot range, so an
+          * 'update slots' will also be needed. */
+         log.Warning("update slots needed. magazine %d previous slots %d-%d are not available", m,
+                  magazine[m].prev_start_slot, magazine[m].prev_start_slot + magazine[m].prev_num_slots - 1);
+         needs_update = true;
+         continue;
       }
-   }
-   free(used);
-   /* confirm loaded magazines for debug purposes only */
-   for (n = 1; n <= magazine_bays; n++) {
-      vlog.Info("confirm bay %d loaded with mag %d = %s", magazine[n].bay_ndx, magazine[n].mag_number,
-            magazine[n].mag_name);
-   }
-
-   /* Compare last known state of virtual drives. If virtual drive's symlink points
-    * to a magazine that is no longer loaded in a bay (ie. mounted), then change drive
-    * state to unloaded. If a virtual drive is loaded from a magazine that has a
-    * different mountpoint than it previously did, then fix the symlink to point to
-    * the correct mountpoint. For drives in the unloaded state, make sure their symlink
-    * is deleted. */
-   for (i = 0; i < virtual_drives; i++) {
-      drive[i].drive = i;
-      /* Restore drive's last state */
-      if (drive[i].restore()) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "error reading state%d file", i);
-         vlog.Error(lasterrmsg);
-         return lasterr;
+      /* Assign this magazine's volumes to the same slots as previously assigned */
+      magazine[m].start_slot = magazine[m].prev_start_slot;
+      for (s = 0; s < magazine[m].num_slots; s++) {
+         v = magazine[m].start_slot + s;
+         vslot[v].mag_bay = m;
+         vslot[v].mag_slot = s;
       }
-      GetDriveSymlinkDir(i, sname, sizeof(sname));
-      if (!drive[i].empty()) {
-         /* If drive was previously loaded, then check that its symlink exists */
-         vlog.Info("Init: drive %d last state was loaded (mag %d slot %d)",
-                  i, drive[i].vol.mag_number, drive[i].vol.mag_slot);
-         n = readlink(sname, tmp, sizeof(tmp));
-         if (n < 1) {
-            /* symlink is missing, so drive state should be unloaded */
-            vlog.Warning("Init: symlink missing for drive %d. Setting virtual drive state to unloaded", i);
-            if (drive[i].clear()) {
-               /* failed to update stateN file */
-               lasterr = -1;
-               snprintf(lasterrmsg, sizeof(lasterrmsg), "i/o error writing virtual drive state%d file", i);
-               vlog.Error(lasterrmsg);
-               return lasterr;
-            }
-         } else {
-            /* symlink exists, but may be dangling (ie. pointing to a no longer mounted magazine)  */
-            tmp[n] = 0;
-            n = MagNum2MagBay(drive[i].vol.mag_number);
-            if (n < 1) {
-               /* symlink is pointing to unmounted magazine, so set drive state unloaded */
-               vlog.Info("Init: symlink for drive %d pointing to no longer mounted magazine. Setting"
-                     " virtual drive state to unloaded.", i);
-               if (RemoveDriveSymlink(i)) {
-                  /* failed to unlink symlink */
-                  lasterr = -1;
-                  snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to remove symlink for virtual drive %d",
-                        i);
-                  vlog.Error(lasterrmsg);
-                  return lasterr;
-               }
-               if (drive[i].clear()) {
-                  /* failed to update stateN file */
-                  lasterr = -1;
-                  snprintf(lasterrmsg, sizeof(lasterrmsg), "i/o error writing virtual drive state%d file", i);
-                  vlog.Error(lasterrmsg);
-                  return lasterr;
-               }
-            } else {
-               /* Drive is loaded and its symlink points to a mounted magazine, but the
-                * mountpoint could have changed. */
-               if (strcmp(tmp, magazine[n].mountpoint)) {
-                  /* Magazine mountpoint changed since drive was loaded */
-                  vlog.Info("Init: symlink for drive %d previously pointed to %s, but magazine mountpoint"
-                        " has changed to %s. Fixing symlink.", i, tmp, magazine[n].mountpoint);
-                  if (RemoveDriveSymlink(i)) {
-                     /* failed to unlink symlink */
-                     lasterr = -1;
-                     snprintf(lasterrmsg, sizeof(lasterrmsg),
-                           "failed to remove symlink for virtual drive %d", i);
-                     vlog.Error(lasterrmsg);
-                     return lasterr;
-                  }
-                  if (SetDriveSymlink(i, magazine[n].mountpoint)) {
-                     /* failed to create symlink */
-                     lasterr = -1;
-                     snprintf(lasterrmsg, sizeof(lasterrmsg),
-                           "failed to create symlink for virtual drive %d", i);
-                     vlog.Error(lasterrmsg);
-                     return lasterr;
-                  }
-               }
-            }
-         }
-      } else {
-         /* Unloaded drives should not have a symlink  */
-         vlog.Info("Init: drive %d last state was unloaded", i);
-         n = readlink(sname, tmp, sizeof(tmp));
-         if (n > 0) {
-            /* remove symlink for unloaded drives */
-            vlog.Info("Init: virtual drive %d is unloaded, so should not have symlink. Removing symlink.", i);
-            if (RemoveDriveSymlink(i)) {
-               /* failed to unlink symlink */
-               lasterr = -1;
-               snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to remove symlink for virtual drive %d", i);
-               vlog.Error(lasterrmsg);
-               return lasterr;
-            }
-         }
-      }
+      log.Notice("%d volumes on magazine %d assigned slots %d-%d", magazine[m].num_slots, m,
+            magazine[m].start_slot, magazine[m].start_slot + magazine[m].num_slots - 1);
    }
 
-   /* Compare drive states to actual magazine volume files. If a drive is loaded with a volume
-    * file on a magazine, then make sure that no other magazines think one of their volume
-    * files is loaded in that same drive. This can happen because the user has swapped magazines
-    * and the new magazine partition had a volume loaded into that drive the last time it was
-    * detached. In short, make sure the state of the virtual drives matches the currently
-    * attached magazines. */
-   for (i = 0; i < virtual_drives; i++) {
-      bay = 0;
-      if (!drive[i].empty()) {
-         /* make sure magazine and drive state agree and no magazine in
-          * another bay has a loadedN file for this drive
-          */
-         bay = MagNum2MagBay(drive[i].vol.mag_number);
-         rc = ReadMagazineLoaded(magazine[bay].mountpoint, i, lab);
-         if (rc) {
-            lasterr = rc;
-            if (rc == -2) {
-               snprintf(lasterrmsg, sizeof(lasterrmsg),
-                     "loaded%d file on magazine in bay %d contains an invalid volume label", i, bay);
-            } else {
-               snprintf(lasterrmsg, sizeof(lasterrmsg),
-                     "i/o error reading loaded%d file on magazine in bay %d", i, bay);
-            }
-            vlog.Error(lasterrmsg);
-            return lasterr;
-         }
-         if (drive[i].vol != lab) {
-            /* Drive state is different from magazine state */
-            if (!lab.empty()) {
-               /* Magazine thinks a different slot is loaded in this drive */
-               vlog.Info("Init: drive %d state has magazine %d slot %d loaded, but the magazine has"
-                     " slot %d loaded. Renaming drive%d file on magazine.",
-                        i, drive[i].vol.mag_number, drive[i].vol.mag_slot, lab.mag_slot, i);
-               if (DoUnload(bay, i, lab)) {
-                  /* magazine level unload failed */
-                  lasterr = -1;
-                  snprintf(lasterrmsg, sizeof(lasterrmsg),
-                        "failed to unload drive %d into magazine bay %d slot %d", i, bay,
-                        lab.mag_slot);
-                  vlog.Error(lasterrmsg);
-                  return lasterr;
-               }
-            } else {
-               vlog.Info("Init: drive %d state has magazine %d slot %d loaded, but according to the magazine"
-                     " the drive is not loaded", i, drive[i].vol.mag_number, drive[i].vol.mag_slot);
-            }
-            /* Magazine thinks drive is unloaded, so drive state is changed to match */
-            vlog.Info("Init: changing drive %d state to unloaded to fix mismatch with state of magazine %d",
-                  i, drive[i].vol.mag_number);
-            if (RemoveDriveSymlink(i)) {
-               /* failed to unlink symlink */
-               lasterr = -1;
-               snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to remove symlink for drive %d", i);
-               vlog.Error(lasterrmsg);
-              return lasterr;
-            }
-            if (drive[i].clear()) {
-               /* failed to update stateN file */
-               lasterr = -1;
-               snprintf(lasterrmsg, sizeof(lasterrmsg), "i/o error writing state%d file", i);
-               vlog.Error(lasterrmsg);
-               return lasterr;
-            }
-            bay = 0;  /* drive is now unloaded */
-         } else {
-            vlog.Info("Init: drive %d is loaded from virtual slot %d (magazine %d slot %d in bay %d)",
-                     i, VolumeLabel2VirtualSlot(drive[i].vol), drive[i].vol.mag_number,
-                     drive[i].vol.mag_slot, bay);
-         }
-      } else {
-         vlog.Info("Info: drive %d is unloaded", i);
+   /* Assign slots to mounted magazines that have not already been assigned. */
+   for (m = 0; m < (int)magazine.size(); m++) {
+      if (magazine[m].empty() || magazine[m].start_slot > 0) continue;
+      if (magazine[m].num_slots == 0) continue;
+      magazine[m].start_slot = FindEmptySlotRange(magazine[m].num_slots);
+      for (s = 0; s < magazine[m].num_slots; s++) {
+         v = magazine[m].start_slot + s;
+         vslot[v].mag_bay = m;
+         vslot[v].mag_slot = s;
       }
-      /* Magazines other than the one the drive is loaded from should
-       * not have a slot loaded in this drive (ie. should not have a driveN file ) */
-      for (n = 1; n <= magazine_bays; n++) {
-         if (n == bay) continue; /* drive is loaded from magazine in this bay */
-         rc = ReadMagazineLoaded(magazine[n].mountpoint, i, lab);
-         if (!lab.empty()) {
-            /* magazine should not have a slot loaded for this drive. This happens
-             * when magazines are detached with drives still loaded and then are
-             * later re-attached */
-            vlog.Info("Info: magazine %d in bay %d should not have drive %d loaded. Fixing magazine.",
-                     lab.mag_number, n, i);
-            if (DoUnload(n, i, lab)) {
-               /* magazine level unload failed */
-               lasterr = -1;
-               snprintf(lasterrmsg, sizeof(lasterrmsg),
-                     "failed to unload drive %d into slot %d of magazine %d in bay %d",
-                     i, lab.mag_slot, lab.mag_number, n);
-               vlog.Error(lasterrmsg);
-               return lasterr;
-            }
-         }
-      }
+      log.Notice("%d volumes on magazine %d assigned slots %d-%d", magazine[m].num_slots, m,
+            magazine[m].start_slot, magazine[m].start_slot + magazine[m].num_slots - 1);
    }
 
+   /* Save updated state of magazines */
+   for (m = 0; m < (int)magazine.size(); m++) {
+      magazine[m].save();
+   }
+   /* Update dynamic configuration info */
+   if ((int)vslot.size() >= dconf.max_slot) {
+      dconf.max_slot = (int)vslot.size() - 1;
+      dconf.save();
+   }
+}
+
+
+/*-------------------------------------------------
+ *  Protected method to initialize state of virtual drives.
+ *  On success, returns zero. On error, returns non-zero.
+ *------------------------------------------------*/
+int DiskChanger::InitializeDrives()
+{
+   int n, rc, max_drive = -1;
+   DIR *d;
+   struct dirent *de;
+   DriveState ds;
+   tString tmp;
+
+   /* For each drive for which a state file exists. try to restore its state */
+   d = opendir(conf.work_dir.c_str());
+   if (!d) {
+      rc = errno;
+      verr.SetErrorWithErrno(rc, "error %d accessing work directory", rc);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
+   }
+   de = readdir(d);
+   while (de) {
+      /* Find next drive state file */
+      tmp = de->d_name;
+      if (tmp.find("drive_state-") == 0) {
+         tmp.erase(0, 12);
+         if (tmp.find_first_of("0123456789") == tString::npos) {
+            de = readdir(d);
+            continue;
+         }
+         if (tmp.find_first_not_of("0123456789") != tString::npos) {
+            de = readdir(d);
+            continue;
+         }
+         n = (int)strtol(tmp.c_str(), NULL, 10);
+         if (n > max_drive) max_drive = n;
+      }
+      de = readdir(d);
+   }
+   closedir(d);
+   if (max_drive < 0) {
+      /* No drive state files exist, so create at least one drive */
+      max_drive = 0;
+   }
+
+   /* Restore last known state of virtual drives where possible.  */
+   for (n = 0; n <= max_drive; n++) {
+      ds.drv = n;
+      drive.push_back(ds);
+      /* Attempt to restore drive's last state */
+      if (RestoreDriveState(n)) {
+         log.Error("ERROR! %s", verr.GetErrorMsg());
+      }
+   }
    return 0;
 }
 
-/*-------------------------------------------------
- *  Method to load virtual drive 'drv' from virtual slot 'slot'.
- *  Returns lasterr. On success, sets lasterr=0, otherwise sets lasterr
- *  to a negative error number.
- *------------------------------------------------*/
-int DiskChanger::LoadDrive(int drv, int slot)
-{
-   VolumeLabel lab;
-   int ldrv, lslot;
-   int bay;
-
-   if (!changer_lock) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "changer not initialized");
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   lasterr = 0;
-   if (drv < 0 || drv >= virtual_drives) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "drive number %d out of range", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   if (slot < 1 || slot > slots) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "invalid slot number %d (max = %d)", slot, slots);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* Check if requested slot is already loaded into a drive */
-   ldrv = GetSlotDrive(slot);
-   if (ldrv == drv) {
-      lslot = VirtualSlot2MagSlot(slot, bay);
-      vlog.Info("Load: drive %d loaded from virtual slot %d (magazine %d slot %d)", drv, slot,
-            magazine[bay].mag_number, lslot);
-      return 0; /* requested slot already loaded in requested drive */
-   }
-
-   if (ldrv >= 0) {
-      /* requested slot is already loaded in another drive */
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "slot %d already loaded in drive %d", slot, ldrv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* Check if requested drive is already loaded */
-   lslot = GetDriveSlot(drv);
-   if (lslot > 0) {
-      /* requested drive is already loaded from another slot */
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "drive %d already loaded from slot %d.", drv, lslot);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* Do magazine level load */
-   if (VirtualSlot2VolumeLabel(slot, lab)) {
-      /* failed converting slot number to label */
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg),
-            "failed to convert slot %d to valid volume file name", slot);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   bay = MagNum2MagBay(lab.mag_number);
-   if (bay < 1) {
-      /* No magazine is mounted at the bay containing this slot */
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg),
-            "magazine bay containing slot %d has no magazine mounted", slot);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   if (DoLoad(bay, drv, lab)) {
-      /* Could not perform magazine level load (ie. renaming of volume file) */
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg),
-            "failed to rename volume file while loading drive %d from slot %d", drv, slot);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* Create symlink to mounted magazine */
-   if (SetDriveSymlink(drv, magazine[bay].mountpoint)) {
-      /* Could not create symlink, so leave drive unloaded */
-      DoUnload(bay, drv, lab);
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "could not create symlink for drive %d", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* update drive state */
-   if (drive[drv].set(lab)) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "i/o error writing file state%d", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-
-   return 0;
-}
 
 /*-------------------------------------------------
- *  Method to unload volume in virtual drive 'drv' into the virtual slot
- *  from whence it came. Returns lasterr. On success, sets lasterr = 0,
- *  otherwise sets lasterr to a negative error number.
+ *  Protected method to ensure that there are at least n drives
  *------------------------------------------------*/
-int DiskChanger::UnloadDrive(int drv)
+void DiskChanger::SetMaxDrive(int need)
 {
-   VolumeLabel lab;
-   int bay;
-
-   if (!changer_lock) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "changer not initialized");
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   int n = (int)drive.size();
+   DriveState ds;
+   while (n <= need) {
+      ds.drv = n++;
+      drive.push_back(ds);
    }
-   lasterr = 0;
-   if (drv < 0 || drv >= virtual_drives) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "drive number %d out of range", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* See if drive is loaded */
-   if (drive[drv].empty()) {
-      return 0; /* drive already unloaded */
-   }
-   /* Do magazine level unload */
-   bay = MagNum2MagBay(drive[drv].vol.mag_number);
-   if (bay > 0) {
-      if (DoUnload(bay, drv, drive[drv].vol)) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to unload drive %d", drv);
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
-   }
-   /* Remove drive's symlink */
-   if (RemoveDriveSymlink(drv)) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "failed to remove symlink for drive %d", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   /* update drive state */
-   if (drive[drv].clear()) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "i/o error writing file state%d", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-
-   return 0;
-}
-
-/*-------------------------------------------------
- *  Method to get virtual slot curently loaded in virtual drive 'drv'.
- *  If virtual drive is loaded, sets lasterr to zero, and returns the
- *  virtual slot number. If unloaded, sets lasterr to zero and returns
- *  zero. On error, sets lasterr and returns negative value.
- *------------------------------------------------*/
-int DiskChanger::GetDriveSlot(int drv)
-{
-   int vslot;
-   if (!changer_lock) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "changer not initialized");
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   lasterr = 0;
-   if (drv >= virtual_drives) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "drive number %d out of range", drv);
-      vlog.Error(lasterrmsg);
-      return lasterr;
-   }
-   return VolumeLabel2VirtualSlot(drive[drv].vol);
-}
-
-/*-------------------------------------------------
- *  Method to get virtual drive that virtual slot 'slot'
- *  is loaded into. If slot is loaded into a drive, returns the
- *  drive the slot is loaded into. If slot is not loaded
- *  into aq drive, returns -1.On error, sets lasterr
- *  non-zero and returns -1.
- *------------------------------------------------*/
-int DiskChanger::GetSlotDrive(int slot)
-{
-   VolumeLabel lab;
-   int n;
-
-   lasterr = 0;
-   if (!changer_lock) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "changer not initialized");
-      vlog.Error(lasterrmsg);
-      return -1;
-   }
-   if (slot < 1 || slot > slots) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "invalid slot number %d", slot);
-      vlog.Error(lasterrmsg);
-      return -1;
-   }
-   VirtualSlot2VolumeLabel(slot, lab);
-   for (n = 0; n < virtual_drives; n++) {
-      if (!drive[n].empty() && drive[n].vol == lab) {
-         return n;
-      }
-   }
-   return -1;
 }
 
 /*
- *  Create new magazine in magazine bay 'bay'. If magnum < 0 then assign a
- *  new magazine number, else use given magazine number. If magazine already
- *  exists or on error, return negative value. On success, return magazine
- *  number assigned.
+ *  Method to create symlink for drive pointing to currently loaded volume file
  */
-int DiskChanger::CreateMagazine(int bay, int magnum)
+int DiskChanger::CreateDriveSymlink(int drv)
 {
-   int mag, n;
+   int mag, mslot, rc;
+   tString sname, fname;
+   char lname[4096];
+
+   if (drv < 0 || drv >= (int)drive.size()) {
+      verr.SetError(EINVAL, "cannot create symlink for invalid drive %d", drv);
+      return EINVAL;
+   }
+   if (drive[drv].vs <= 0) {
+      verr.SetError(ENOENT, "cannot create symlink for unloaded drive %d", drv);
+      return ENOENT;
+   }
+   mag = vslot[drive[drv].vs].mag_bay;
+   mslot = vslot[drive[drv].vs].mag_slot;
+   fname = magazine[mag].GetVolumePath(mslot);
+   if (fname.empty()) {
+      verr.SetError(ENOENT, "cannot create symlink for unloaded drive %d", drv);
+      return ENOENT;
+   }
+   tFormat(sname, "%s%s%d", conf.work_dir.c_str(), DIR_DELIM, drv);
+   rc = readlink(sname.c_str(), lname, sizeof(lname));
+   if (rc > 0) {
+      if (rc >= (int)sizeof(lname)) {
+         verr.SetError(ENAMETOOLONG, "symlink target too long on readlink for drive %d", drv);
+         return ENAMETOOLONG;
+      }
+      lname[rc] = 0;
+      if (fname == lname) {
+         /* symlink already exists */
+         log.Info("found symlink for drive %d -> %s", drv, fname.c_str());
+         return 0;
+      }
+      /* Symlink points to wrong mountpoint, so delete and re-create */
+      if (RemoveDriveSymlink(drv)) return EEXIST;
+   }
+   if (symlink(fname.c_str(), sname.c_str())) {
+      rc = errno;
+      verr.SetErrorWithErrno(rc, "error %d creating symlink for drive %d", rc, drv);
+      return rc;
+   }
+   log.Notice("created symlink for drive %d -> %s", drv, fname.c_str());
+   return 0;
+}
+
+/*-------------------------------------------------
+ *  Method to delete this drive's symlink.
+ *  On success returns zero, else on error sets lasterr and
+ *  returns errno.
+ *-------------------------------------------------*/
+int DiskChanger::RemoveDriveSymlink(int drv)
+{
+   int rc;
+   tString sname;
+
+   if (drv < 0 || drv >= (int)drive.size()) {
+      verr.SetError(EINVAL, "cannot delete symlink for invalid drive %d", drv);
+      return EINVAL;
+   }
+   /* Remove symlink pointing to loaded volume file */
+   tFormat(sname, "%s%s%d", conf.work_dir.c_str(), DIR_DELIM, drv);
+   if (unlink(sname.c_str())) {
+      if (errno == ENOENT) return 0;  /* Ignore if not found */
+      /* System error preventing deletion of symlink */
+      rc = errno;
+      verr.SetErrorWithErrno(errno, "error %d deleting symlink for drive %d: ", rc, drv);
+      return rc;
+   }
+   log.Notice("deleted symlink for drive %d", drv);
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to save current drive state, device string and
+ *  volume label (filename), to a file in the work
+ *  directory named "drive_state-N", where N is the drive number.
+ *  On success returns zero, else on error sets lasterr and
+ *  returns errno.
+ *-------------------------------------------------*/
+int DiskChanger::SaveDriveState(int drv)
+{
    mode_t old_mask;
-   VolumeLabel lab;
-   char vlabel[PATH_MAX], fname[PATH_MAX];
-   FILE *fs;
+   FILE *FS;
+   int rc, mag, mslot;
+   tString sname;
+
+   if (drv < 0 || drv >= (int)drive.size()) {
+      verr.SetError(EINVAL, "cannot save state of invalid drive %d", drv);
+      return EINVAL;
+   }
+   /* Delete old state file */
+   tFormat(sname, "%s%sdrive_state-%d", conf.work_dir.c_str(), DIR_DELIM, drv);
+   if (drive[drv].empty()) {
+      if (access(sname.c_str(), F_OK) == 0) {
+         log.Notice("deleted state file for drive %d", drv);
+      }
+      unlink(sname.c_str());
+      return 0;
+   }
+   old_mask = umask(027);
+   FS = fopen(sname.c_str(), "w");
+   if (!FS) {
+      /* Unable to open state file */
+      rc = errno;
+      umask(old_mask);
+      verr.SetErrorWithErrno(rc, "failed opening state file for drive %d", drv);
+      return rc;
+   }
+   mag = vslot[drive[drv].vs].mag_bay;
+   mslot = vslot[drive[drv].vs].mag_slot;
+   if (fprintf(FS, "%s,%s\n", magazine[mag].mag_dev.c_str(),
+               magazine[mag].GetVolumeLabel(mslot)) < 0) {
+      /* I/O error writing state file */
+      rc = errno;
+      fclose(FS);
+      umask(old_mask);
+      verr.SetErrorWithErrno(rc, "error %d writing state file for drive %d", rc, drv);
+      return rc;
+   }
+   fclose(FS);
+   umask(old_mask);
+   log.Notice("wrote state file for drive %d", drv);
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to restore drive state from a file in the work directory
+ *  named "drive_state-N", where N is drive_number. If the volume
+ *  previously loaded is available, then restore drive to the loaded
+ *  state, otherwise set drive unloaded and remove the symlink and
+ *  state file for this drive.
+ *  On success returns zero, else on error sets lasterr and
+ *  returns errno.
+ *-------------------------------------------------*/
+int DiskChanger::RestoreDriveState(int drv)
+{
+   int rc, v, m, ms;
+   tString line, dev, labl;
+   size_t p;
+   struct stat st;
+   FILE *FS;
+   tString sname;
+
+   if (drv < 0 || drv >= (int)drive.size()) {
+      verr.SetError(EINVAL, "cannot restore state of invalid drive %d", drv);
+      return EINVAL;
+   }
+   drive[drv].clear();
+
+   /* Check for existing state file */
+   tFormat(sname, "%s%sdrive_state-%d", conf.work_dir.c_str(), DIR_DELIM, drv);
+   if (stat(sname.c_str(), &st)) {
+      /* drive state file not found, so drive is not loaded */
+      RemoveDriveSymlink(drv);
+      log.Info("drive %d previously unloaded", drv);
+      return 0;
+   }
+   /* Read loaded volume info from state file */
+   FS = fopen(sname.c_str(), "r");
+   if (!FS) {
+      /* Error opening state file, so leave drive unloaded */
+      verr.SetError(EACCES, "drive %d state file is not readable", drv);
+      return EACCES;
+   }
+   if (tGetLine(line, FS) == NULL) {
+      if (!feof(FS)) {
+         /* i/o error reading line from state file. Change state to unloaded */
+         rc = ferror(FS);
+         fclose(FS);
+         unlink(sname.c_str());
+         RemoveDriveSymlink(drv);
+         verr.SetErrorWithErrno(rc, "error %d reading state file for drive %d", rc, drv);
+         return rc;
+      }
+   }
+   fclose(FS);
+   tStrip(tRemoveEOL(line));
+   /* Extract the device drive was last loaded from */
+   p = 0;
+   rc = tParseCSV(dev, line, p);
+   if (rc != 1 || dev.empty()) {
+      /* Device string not found. Change state to unloaded. */
+      verr.SetError(EINVAL, "deleting corrupt state file for drive %d", drv);
+      unlink(sname.c_str());
+      RemoveDriveSymlink(drv);
+      return EINVAL;
+   }
+   /* Extract label of volume drive was last loaded from */
+   rc = tParseCSV(labl, line, p);
+   if (rc != 1 || labl.empty()) {
+      /* Label string not found. Change state to unloaded. */
+      verr.SetError(EINVAL, "deleting corrupt state file for drive %d", drv);
+      unlink(sname.c_str());
+      RemoveDriveSymlink(drv);
+      return EINVAL;
+   }
+
+   /* Find virtual slot assigned the volume file last loaded in drive */
+   for (v = 1; v < (int)vslot.size(); v++) {
+      if (labl == GetVolumeLabel(v)) break;
+   }
+   if (v >= (int)vslot.size()) {
+      /* Volume last loaded is no longer available. Change state to unloaded. */
+      log.Notice("volume %s no longer available, unloading drive %d",
+                  labl.c_str(), drv);
+      unlink(sname.c_str());
+      RemoveDriveSymlink(drv);
+      return 0;
+   }
+   drive[drv].vs = v;
+
+   /* Ensure symlink exists or create it */
+   if ((rc = CreateDriveSymlink(drv)) != 0) {
+      /* Unable to create symlink */
+      drive[drv].vs = -1;
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
+   }
+
+   /* Assign drive to virtual slot */
+   vslot[v].drv = drv;
+   m = vslot[v].mag_bay;
+   ms = vslot[v].mag_slot;
+   log.Notice("drive %d previously loaded from slot %d (%s)", drv, v, magazine[m].GetVolumeLabel(ms));
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to initialize changer parameters and state of magazines,
+ *  virtual slots, and virtual drives.
+ *  On success, returns zero. On error, returns negative.
+ *  In either case, obtains a lock on the changer unless the lock operation
+ *  itself fails. The lock will be released when the DiskChanger object
+ *  is destroyed.
+ *------------------------------------------------*/
+int DiskChanger::Initialize()
+{
+   /* Make sure we have a lock on this changer */
+   if (Lock()) return verr.GetError();
+   magazine.clear();
+   vslot.clear();
+   drive.clear();
+   dconf.restore();
+   needs_update = false;
+
+   /* Initialize array of mounted magazines */
+   InitializeMagazines();
+
+   /* Initialize array of virtual slots */
+   InitializeVirtSlots();
+
+   /* Initialize array of virtual drives */
+   if (InitializeDrives()) return verr.GetError();
+
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to load virtual drive 'drv' from virtual slot 'slot'.
+ *  Returns zero on success, else sets lasterr and
+ *  returns negative.
+ *------------------------------------------------*/
+int DiskChanger::LoadDrive(int drv, int slot)
+{
+   int rc, m, ms;
 
    if (!changer_lock) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "changer not initialized");
-      vlog.Error(lasterrmsg);
-      return lasterr;
+      verr.SetError(EINVAL, "changer not initialized");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
    }
-   lasterr = 0;
-   if ((bay < 1) || (bay > magazine_bays)) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "magazine bay %d out of range", bay);
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   if (drv < 0) {
+      verr.SetError(EINVAL, "invalid drive number %d", drv);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
    }
-
-   /* Check for magazine not mounted */
-   if (strlen(magazine[bay].mountpoint) == 0) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "magazine bay %d has no magazine mounted", bay);
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   SetMaxDrive(drv);
+   if (slot < 1 || slot >= (int)vslot.size()) {
+      verr.SetError(EINVAL, "cannot load drive %d from invalid slot %d", drv, slot);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
    }
-   /* Check for existing magazine index file */
-   if (magazine[bay].mag_number > 0) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg),
-            "magazine in bay %d (%s) already initialized as magazine %d", bay,
-            magazine[bay].mountpoint, magazine[bay].mag_number);
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   if (!drive[drv].empty()) {
+      if (drive[drv].vs == slot) return 0;  /* already loaded from this slot */
+      verr.SetError(EBUSY, "drive %d already loaded from slot %d", drv, slot);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EBUSY;
    }
-   /* Determine magazine number to assign new magazine */
-   mag = magnum;
-   if (mag < 1) {
-      mag = ReadNextMagazineNumber();
-      if (mag < 1) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "could not assign next magazine number");
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
+   if (vslot[slot].empty()) {
+      verr.SetError(EINVAL, "cannot load drive %d from empty slot %d", drv, slot);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return ENOENT;
    }
-   /* Create new magazine's index file */
-   if (WriteMagazineIndex(magazine[bay].mountpoint, mag)) {
-      lasterr = -1;
-      snprintf(lasterrmsg, sizeof(lasterrmsg), "could not create index file on %s",
-            magazine[bay].mountpoint);
-      vlog.Error(lasterrmsg);
-      return lasterr;
+   /* Create symlink for drive pointing to volume file */
+   drive[drv].vs = slot;
+   if ((rc = CreateDriveSymlink(drv))) {
+      drive[drv].vs = -1;
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
    }
-   /* Create empty volumes on the magazine */
-   old_mask = umask(MAG_VOLUME_MASK);
-   for (n = 1; n <= slots_per_mag; n++) {
-      lab.set(changer_name, mag, n);
-      snprintf(fname, sizeof(fname), "%s%s%s", magazine[bay].mountpoint, DIR_DELIM, lab.GetLabel(
-            vlabel, sizeof(vlabel)));
-      fs = fopen(fname, "w");
-      if (!fs) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "could not write magazine volume %s", fname);
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
-      fclose(fs);
+   /* Save state of newly loaded drive */
+   if ((rc = SaveDriveState(drv)) != 0) {
+      /* Error writing drive state file */
+      RemoveDriveSymlink(drv);
+      drive[drv].vs = -1;
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
    }
-   /* Create empty loadedN files */
-   for (n = 0; n < virtual_drives; n++) {
-      snprintf(fname, sizeof(fname), "%s%sloaded%d", magazine[bay].mountpoint, DIR_DELIM, n);
-      fs = fopen(fname, "w");
-      if (!fs) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "could not write loadedN file for drive %d", n);
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
-      fprintf(fs, "\n");
-      fclose(fs);
-   }
-   umask(old_mask);
-   /* Update nextmag file */
-   if (magnum > 0) {
-      /* If user supplied mag number > current nextmag, then cause nextmag to be updated */
-      n = ReadNextMagazineNumber();
-      if (n > 0 && n <= mag) magnum = -1;
-   }
-   if (magnum < 1) {
-      if (WriteNextMagazineNumber(mag + 1)) {
-         lasterr = -1;
-         snprintf(lasterrmsg, sizeof(lasterrmsg), "could not update nextmag file");
-         vlog.Error(lasterrmsg);
-         return lasterr;
-      }
-   }
-   /* update magazine mounted state */
-   magazine[bay].mag_number = mag;
-   return mag;
+   /* Assign virtual slot to drive */
+   vslot[slot].drv = drv;
+   m = vslot[slot].mag_bay;
+   ms = vslot[slot].mag_slot;
+   log.Notice("loaded drive %d from slot %d (%s)", drv, slot, magazine[m].GetVolumeLabel(ms));
+   return 0;
 }
 
+
 /*-------------------------------------------------
- *  Method to get last error encountered. Returns last error number
- *  and copies corresponding error message text to 'msg'.
+ *  Method to unload volume in virtual drive 'drv'. Deletes symlink
+ *  and state file for the drive.
+ *  On success, returns zero. Otherwise sets lasterr and returns
+ *  errno.
  *------------------------------------------------*/
-int DiskChanger::GetLastError(char * msg, size_t msg_size)
+int DiskChanger::UnloadDrive(int drv)
 {
-   *msg = 0;
-   if (lasterr) {
-      strncpy(msg, lasterrmsg, msg_size);
+   int rc;
+
+   if (!changer_lock) {
+      verr.SetError(EINVAL, "changer not initialized");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
    }
-   return lasterr;
+   if (drv < 0) {
+      verr.SetError(EINVAL, "invalid drive number %d", drv);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return EINVAL;
+   }
+   SetMaxDrive(drv);
+   if (drive[drv].empty()) {
+      /* Drive is already empty so assume successful */
+      return 0;
+   }
+   /* Remove drive's symlink */
+   if ((rc = RemoveDriveSymlink(drv)) != 0) {
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
+   }
+   /* Remove virtual slot assignment */
+   vslot[drive[drv].vs].drv = -1;
+   drive[drv].vs = -1;
+   /* Update drive state file (will delete state file due to negative slot number) */
+   if ((rc = SaveDriveState(drv)) != 0) {
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return rc;
+   }
+   log.Notice("unloaded drive %d", drv);
+   return 0;
 }
 
+
 /*-------------------------------------------------
- *  Method to unlock changer device. Sets lasterr to zero and
- *  deletes lock file.
+ *  Method to create new volume files in virtual slots 'slot1' through 'slot2'.
+ *  Use volume labels (barcodes) of the form prefix + '_' + mag_slot_number, where
+ *  mag_slot_number is the magazine relative slot number of the magazine slot that
+ *  the virtual slot maps to. If 'label_prefix' is blank, then use the magazine name
+ *  of the magazine the virtual slot is mapped onto as the prefix.
+ *  Returns zero on success, else returns negative and sets lasterr.
  *------------------------------------------------*/
-void DiskChanger::Unlock()
+int DiskChanger::CreateVolumes(int bay, int count, int start, const char *label_prefix_in)
 {
-   lasterr = 0;
-   internalUnlock();
+   MagazineSlot vol;
+   tString label, label_prefix(label_prefix_in);
+   int i;
+
+   if (!changer_lock) {
+      verr.SetError(EINVAL, "changer not initialized");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return -1;
+   }
+   if (bay < 0 || bay >= (int)magazine.size()) {
+      verr.SetError(EINVAL, "invalid magazine");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return -1;
+   }
+   if (count < 1) count = 1;
+   tStrip(tRemoveEOL(label_prefix));
+   if (label_prefix.empty()) {
+      /* Default prefix is storage-name_magazine-number */
+      tFormat(label_prefix, "%s_%d", conf.storage_name.c_str(), bay);
+   }
+   if (start < 0) {
+      /* Find highest uniqueness number for this filename prefix */
+      for (i = magazine[bay].num_slots * 5; i > 0; i--) {
+         tFormat(label, "%s_%d", label_prefix.c_str(), i);
+         if (magazine[bay].GetVolumeSlot(label) >= 0) break;
+      }
+      start = i;
+   }
+   for (i = 0; i < count; i++) {
+      tFormat(label, "%s_%d", label_prefix.c_str(), start);
+      if (!magazine[bay].empty()) {
+         while (magazine[bay].GetVolumeSlot(label) >= 0) {
+            ++start;
+            tFormat(label, "%s_%d", label_prefix.c_str(), start);
+         }
+      }
+      fprintf(stdout, "creating label '%s'\n", label.c_str());
+      if (magazine[bay].CreateVolume(label)) {
+         if (i) magazine[bay].save();
+         return -1;
+      }
+      ++start;
+   }
+   /* Update magazine state */
+   magazine[bay].save();
+   /* New mag state will require 'update slots' and 'label barcodes' in Bacula */
+   needs_update = true;
+   needs_label = true;
+   log.Notice("update slots needed. %d volumes added to magazine %d",count , bay);
+   return 0;
 }
 
 /*-------------------------------------------------
- *  Method to lock changer device using a lock file such that only
- *  one process at a time may execute changer commands on the
+ *  Method to cause Bacula to update its catalog to reflect
+ *  changes in the available volumes
+ *-------------------------------------------------*/
+int DiskChanger::UpdateBacula()
+{
+   int rc;
+   FILE *update_lock;
+   tString cmd;
+   char lockfile[4096];
+
+   /* Check if update needed */
+   if (!needs_update && !needs_label) return 0; /* Nothing to do */
+   /* Create update lock lockfile */
+   snprintf(lockfile, sizeof(lockfile), "%s%s%s.updatelock", conf.work_dir.c_str(), DIR_DELIM,
+         conf.storage_name.c_str());
+   rc = exclusive_fopen(lockfile, &update_lock);
+   if (rc == EEXIST) {
+      /* Update already in progress in another process, so skip */
+      return 0;
+   }
+   if (rc) {
+      /* error creating lockfile, so skip */
+      if (needs_update)
+         log.Error("WARNING! 'update slots' needed in bconsole");
+      if (needs_label)
+         log.Error("WARNING! 'label barcodes' needed in bconsole");
+      return 0;
+   }
+   log.Debug("created update lockfile for pid %d", getpid());
+   /* Remove lock so another vchanger instance invoked due to the update slots or
+    * label barcodes command doens't block */
+   Unlock();
+   /* Perform update slots command in bconsole */
+   if (needs_update) {
+      /* Issue update slots command in bconsole */
+      tFormat(cmd, "update slots storage=\"%s\" drive=0", conf.storage_name.c_str());
+      if(issue_bconsole_command(cmd.c_str())) {
+         log.Error("WARNING! 'update slots' needed in bconsole");
+      }
+   }
+   /* Perform label barcodes command in bconsole */
+   if (needs_label) {
+      tFormat(cmd, "label storage=\"%s\" pool=\"%s\" barcodes\ny\nyes\n", conf.storage_name.c_str(),
+            conf.def_pool.c_str());
+      if (issue_bconsole_command(cmd.c_str())) {
+         log.Error("WARNING! 'label barcodes' needed in bconsole");
+      }
+   }
+   /* Obtain changer lock before removing update lock */
+   if (Lock()) {
+      log.Error("timeout obtaining lock for pid=%d", getpid());
+      fclose(update_lock);
+      unlink(lockfile);
+      log.Error("force removal of update lockfile for pid %d", getpid());
+      return 0;
+   }
+   fclose(update_lock);
+   unlink(lockfile);
+   log.Debug("removed update lockfile for pid %d", getpid());
+   return 0;
+}
+
+
+/*-------------------------------------------------
+ *  Method to get label of volume in this slot
+ *-------------------------------------------------*/
+const char* DiskChanger::GetVolumeLabel(int slot)
+{
+   if (slot <= 0 || slot >= (int)vslot.size()) {
+      verr.SetError(-1, "volume label request from invalid slot %d", slot);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return NULL;
+   }
+   if (vslot[slot].empty()) return "";
+   return magazine[vslot[slot].mag_bay].GetVolumeLabel(vslot[slot].mag_slot);
+}
+
+
+/*-------------------------------------------------
+ *  Method to get filename path of volume in this slot
+ *-------------------------------------------------*/
+const char* DiskChanger::GetVolumePath(tString &path, int slot)
+{
+   path.clear();
+   if (slot <= 0 || slot >= (int)vslot.size()) {
+      verr.SetError(-1, "volume path request from invalid slot %d", slot);
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return NULL;
+   }
+   if (vslot[slot].empty()) return path.c_str();
+   return magazine[vslot[slot].mag_bay].GetVolumePath(path, vslot[slot].mag_slot);
+}
+
+
+/*-------------------------------------------------
+ *  Protected method to lock changer device using a lock file such that
+ *  only one process at a time may execute changer commands on the
  *  same autochanger. If another process has the lock, then this process
  *  will sleep 1 second before trying again. This try/wait loop will continue
  *  until the lock is obtained or 'timeout' seconds have expired. If
@@ -791,367 +853,150 @@ void DiskChanger::Unlock()
  *  On success, returns true. Otherwise on error or timeout, sets
  *  lasterr negative and returns false.
  *------------------------------------------------*/
-bool DiskChanger::Lock(const long timeout)
+int DiskChanger::Lock(long timeout_seconds)
 {
-   long timeoutms;
-   struct timeval tv1, tv2;
    int rc;
-   char lockfile[PATH_MAX];
+   time_t timeout = 0;
+   char lockfile[4096];
 
-   if (changer_lock) return true;
-   timeoutms = timeout * 1000;
-   snprintf(lockfile, sizeof(lockfile), "%s%s%s.lock", work_dir, DIR_DELIM, changer_name);
-   gettimeofday(&tv1, NULL);
+   if (changer_lock) return 0;
+
+   if (timeout_seconds < 0) {
+      timeout_seconds = 3600 * 24 * 365;
+   }
+   if (timeout_seconds > 0) {
+      timeout = time(NULL) + timeout_seconds;
+   }
+   snprintf(lockfile, sizeof(lockfile), "%s%s%s.lock", conf.work_dir.c_str(), DIR_DELIM,
+         conf.storage_name.c_str());
    rc = exclusive_fopen(lockfile, &changer_lock);
-   if (timeoutms == 0 && rc != 0) return false;  /* timeout=0 means no wait */
+   if (rc == EEXIST && timeout == 0) {
+      /* timeout=0 means do not wait */
+      verr.SetErrorWithErrno(rc, "cannot open lockfile");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return -1;
+   }
    while (rc == EEXIST) {
-      GetLockfileOwner(lockfile);
       /* sleep before trying again */
-      millisleep(1000);
-      if (timeoutms > 0) {
-         /* check for timeout when timeout > 0 */
-         gettimeofday(&tv2, NULL);
-         if (timeval_et_ms(&tv1, &tv2) >= timeoutms) return false;
+      sleep(1);
+      if (time(NULL) > timeout) {
+         verr.SetError(EBUSY, "timeout waiting for lockfile");
+         log.Error("ERROR! %s", verr.GetErrorMsg());
+         return EACCES;
       }
       rc = exclusive_fopen(lockfile, &changer_lock);
    }
-   if (rc) return false;  /* i/o error opening lock file */
+   if (rc) {
+      verr.SetErrorWithErrno(rc, "cannot open lockfile");
+      log.Error("ERROR! %s", verr.GetErrorMsg());
+      return -1;
+   }
+   /* Write PID to lockfile and leave open for exclusive R/W */
    fprintf(changer_lock, "%d", getpid());
    fflush(changer_lock);
-   return true;
+   log.Debug("created lockfile for pid %d", getpid());
+   return 0;
 }
 
 /*-------------------------------------------------
- *  Protected method to unlock changer device without affecting lasterr.
+ *  Protected method to unlock changer device
  *------------------------------------------------*/
-void DiskChanger::internalUnlock()
+void DiskChanger::Unlock()
 {
-   char lockfile[PATH_MAX];
-
+   char lockfile[4096];
    if (!changer_lock) return;
-   snprintf(lockfile, sizeof(lockfile), "%s%s%s.lock", work_dir, DIR_DELIM, changer_name);
    fclose(changer_lock);
-   unlink(lockfile);
    changer_lock = NULL;
+   snprintf(lockfile, sizeof(lockfile), "%s%s%s.lock", conf.work_dir.c_str(), DIR_DELIM,
+         conf.storage_name.c_str());
+   log.Debug("removing lockfile for pid %d", getpid());
+   unlink(lockfile);
 }
+
 
 /*-------------------------------------------------
- *  Protected method to set default values for changer device.
+ *  Method returns true if magazine is not mounted,
+ *  else returns false.
  *------------------------------------------------*/
-void DiskChanger::SetDefaults()
+bool DiskChanger::MagazineEmpty(int mag) const
 {
-   /* Sets parameters to default values */
-   strncpy(changer_name, DEFAULT_CHANGER_NAME, sizeof(changer_name));
-   strncpy(work_dir, DEFAULT_WORK_DIR, sizeof(work_dir));
-   virtual_drives = DEFAULT_VIRTUAL_DRIVES;
-   slots_per_mag = DEFAULT_SLOTS_PER_MAG;
-   slots = magazine_bays * slots_per_mag;
+   if (mag < 0 || mag >= (int)magazine.size()) return true;
+   return magazine[mag].empty();
 }
+
 
 /*-------------------------------------------------
- *  Method to return in 'lnkdir' the symlink name to use for virtual drive
- *  'drv'. Returns zero on success, else non-zero if 'drv' is out of range.
+ *  Method returns true if no magazine volume is assigned
+ *  to virtual slot, else returns false.
  *------------------------------------------------*/
-int DiskChanger::GetDriveSymlinkDir(int drv, char *lnkdir, size_t lnkdir_size)
+bool DiskChanger::SlotEmpty(int slot) const
 {
-   if (drv >= virtual_drives) {
-      *lnkdir = 0;
-      return -1;
-   }
-   snprintf(lnkdir, lnkdir_size, "%s%s%d", work_dir, DIR_DELIM, drv);
-   return 0;
+   if (slot <= 0 || slot >= (int)vslot.size()) return true;
+   return vslot[slot].empty();
 }
 
-/*
- *  Returns the next available magazine number from the nextmag file.
- *  Returns negative value on error.
- */
-int DiskChanger::ReadNextMagazineNumber()
-{
-   int mag;
-   FILE *fs;
-   char *gstr;
-   char buf[128], nmag[PATH_MAX];
 
-   /* Get nextmag path */
-   snprintf(nmag, sizeof(nmag), "%s%snextmag", work_dir, DIR_DELIM);
-   fs = fopen(nmag, "r");
-   if (!fs) {
-      return 1;
-   }
-   /* Read the nextmag file */
-   gstr = fgets(buf, sizeof(buf), fs);
-   fclose(fs);
-   if (!gstr) {
-      return -1; /* i/o error reading nextmag */
-   }
-   mag = strtol(buf, NULL, 10);
-   if (mag < 1) {
-      mag = 1;
-   }
-   return mag;
+/*-------------------------------------------------
+ *  Method returns true if no magazine volume is loaded
+ *  into drive drv, else returns false.
+ *------------------------------------------------*/
+bool DiskChanger::DriveEmpty(int drv) const
+{
+   if (drv < 0 || drv >= (int)drive.size()) return true;
+   return drive[drv].empty();
 }
 
-/*
- *  Writes the next available magazine number in 'magnum to the
- *  nextmag file. Returns zero on success or negative value on error.
- */
-int DiskChanger::WriteNextMagazineNumber(int magnum)
-{
-   FILE *fs;
-   char nmag[PATH_MAX];
 
-   /* Get nextmag path */
-   snprintf(nmag, sizeof(nmag), "%s%snextmag", work_dir, DIR_DELIM);
-   fs = fopen(nmag, "w");
-   if (!fs) {
-      return -1;
-   }
-   if (fprintf(fs, "%d", magnum) < 0) {
-      /* Unable to write to file */
-      fclose(fs);
-      return -1;
-   }
-   fclose(fs);
-   return 0;
+/*-------------------------------------------------
+ *  Method to get virtual slot currently loaded in virtual drive 'drv'.
+ *  If drive is loaded then returns the virtual slot number of the
+ *  loaded volume. If unloaded, returns zero.
+ *------------------------------------------------*/
+int DiskChanger::GetDriveSlot(int drv) const
+{
+   if (drv < 0 || drv >= (int)drive.size()) return 0;
+   return drive[drv].vs;
 }
 
-/*
- *  Writes the index file for magazine at 'mountpt', assigning it the magazine number given
- *  in 'magnum'. On success returns zero, otherwise negative value on error.
- */
-int DiskChanger::WriteMagazineIndex(const char *mountpt, int magnum)
+
+/*-------------------------------------------------
+ *  Method to get drive a virtual slot is currently loaded in.
+ *  Returns the drive number a slot's volume is loaded in.
+ *  If unloaded, returns negative.
+ *------------------------------------------------*/
+int DiskChanger::GetSlotDrive(int slot) const
 {
-   char fname[PATH_MAX];
-   snprintf(fname, sizeof(fname), "%s%sindex", mountpt, DIR_DELIM);
-   FILE *fs = fopen(fname, "w");
-   if (!fs) {
-      return -1;
-   }
-   if (fprintf(fs, "%s_%04d", changer_name, magnum) < 0) {
-      fclose(fs);
-      return -1;
-   }
-   fclose(fs);
-   return 0;
+   if (slot <= 0 || slot >= (int)vslot.size()) return -1;
+   return vslot[slot].drv;
 }
 
-/*
- *  Reads the loadedN file on magazine 'mountpt' for drive 'drive'. If the loadedN file contains
- *  a volume label, then returns the volume info in 'lab', otherwise clears 'lab'. On success,
- *  returns zero. On i/o error, returns -1. On invalid label in loadedN file, returns -2.
- */
-int DiskChanger::ReadMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab)
+
+/*-------------------------------------------------
+ *  Method to return number of volumes on magazine 'mag'.
+ *------------------------------------------------*/
+int DiskChanger::GetMagazineSlots(int mag) const
 {
-   FILE *fs;
-   char loaded[PATH_MAX], buff[256];
-   lab.clear();
-   snprintf(loaded, sizeof(loaded), "%s%sloaded%d", mountpt, DIR_DELIM, drive);
-   fs = fopen(loaded, "r");
-   if (!fs) {
-      /* there should be a loaded file. Try to write one */
-      fs = fopen(loaded, "w");
-      if (!fs) {
-         /* unable to open for writing */
-         return -1;
-      }
-      if (fprintf(fs, "\n") < 1) {
-         /* unable to write loaded file */
-         fclose(fs);
-         return -1;
-      }
-      /* missing loaded file was created, same as if unloaded */
-      fclose(fs);
-      return 0;
-   }
-   if (!fgets(buff, sizeof(buff), fs)) {
-      /* unable to read loaded file */
-      fclose(fs);
-      return -1;
-   }
-   fclose(fs);
-   strip_whitespace(buff, sizeof(buff));
-   if (!strlen(buff)) {
-      /* driveN file was empty */
-      return 0;
-   }
-   if (lab.set(buff)) {
-      /* invalid volume label in loaded file */
-      return -2;
-   }
-   return 0;
+   if (mag < 0 || mag >= (int)magazine.size()) return 0;
+   return magazine[mag].num_slots;
 }
 
-/*
- *  Writes the volume label contained in 'lab' to the loadedN file for drive 'drive'
- *  on magazine 'mountpt'. If 'lab' is cleared, then clears the contents of loadedN.
- *  On success, returns zero. Otherwise, on i/o error, returns negative value.
- */
-int DiskChanger::WriteMagazineLoaded(const char *mountpt, int drive, VolumeLabel &lab)
+
+/*-------------------------------------------------
+ *  Method to return the start of the virtual slot range
+ *  that is assigned to magazine 'mag' volumes.
+ *------------------------------------------------*/
+int DiskChanger::GetMagazineStartSlot(int mag) const
 {
-   char loaded[PATH_MAX], vlabel[128];
-   snprintf(loaded, sizeof(loaded), "%s%sloaded%d", mountpt, DIR_DELIM, drive);
-   FILE *fs = fopen(loaded, "w");
-   if (!fs) {
-      /* unable to open loaded file for writing */
-      return -1;
-   }
-   if (fprintf(fs, "%s\n", lab.GetLabel(vlabel, sizeof(vlabel))) < 1) {
-      /* unable to write loaded file */
-      fclose(fs);
-      return -1;
-   }
-   fclose(fs);
-   return 0;
+   if (mag < 0 || mag >= (int)magazine.size()) return 0;
+   return magazine[mag].start_slot;
 }
 
-/*
- * Return magazine bay containing the magazine with magazine number magnum
- */
-int DiskChanger::MagNum2MagBay(int magnum)
+
+/*-------------------------------------------------
+ *  Method to return the mountpoint of magazine 'mag'.
+ *------------------------------------------------*/
+const char* DiskChanger::GetMagazineMountpoint(int mag) const
 {
-   int n;
-   if (magnum < 1) return 0;
-   for (n = 1; n <= magazine_bays; n++) {
-      if (magazine[n].mag_number == magnum) {
-         return n;
-      }
-   }
-   return 0;
-}
-
-/*
- *  Return virtual slot number, given magazine number and magazine slot
- */
-int DiskChanger::MagSlot2VirtualSlot(int magnum, int magslot)
-{
-   int vslot, bay = MagNum2MagBay(magnum);
-   if (bay < 1) {
-      return 0;
-   }
-   vslot = ((bay - 1) * slots_per_mag) + magslot;
-   return vslot;
-}
-
-/*
- *  Translates a virtual slot number in 'slot' to a magazine bay and magazine slot.
- *  The magazine slot is returned, and 'mag_bay' set to the magazine bay.
- */
-int DiskChanger::VirtualSlot2MagSlot(int slot, int &mag_bay)
-{
-   mag_bay = ((slot - 1) / slots_per_mag) + 1;
-   return ((slot - 1) % slots_per_mag) + 1;
-}
-
-/*
- *  Translate virtual slot number in 'slot' to volume label in 'lab'.
- *  Returns zero on success.
- */
-int DiskChanger::VirtualSlot2VolumeLabel(int slot, VolumeLabel &lab)
-{
-   int mag_bay, mag_slot;
-   char vname[256];
-   mag_slot = VirtualSlot2MagSlot(slot, mag_bay);
-   snprintf(vname, sizeof(vname), "%s_%04d_%04d", changer_name, magazine[mag_bay].mag_number,
-         mag_slot);
-   return lab.set(vname);
-}
-
-/*
- *  Translate volume label struct in 'lab' to virtual slot number.
- *  Returns virtual slot on success, else negative number on error.
- */
-int DiskChanger::VolumeLabel2VirtualSlot(const VolumeLabel &lab)
-{
-   if (lab.mag_number < 1) {
-      return 0;
-   }
-   return MagSlot2VirtualSlot(lab.mag_number, lab.mag_slot);
-}
-
-/*
- *  Do actual loading of drive 'drv' at the magazine level by renaming volume file 'lab'
- *  on the magazine in bay 'bay' to driveN and writing loaded volume name to loadedN file
- */
-int DiskChanger::DoLoad(int bay, int drv, VolumeLabel &lab)
-{
-   char dpath[PATH_MAX], vpath[PATH_MAX], vlabel[256];
-
-   if (lab.empty()) {
-      return -1; /* attempted to load unset volume label */
-   }
-   lab.GetLabel(vlabel, sizeof(vlabel));
-   snprintf(vpath, sizeof(vpath), "%s%s%s", magazine[bay].mountpoint, DIR_DELIM, vlabel);
-   snprintf(dpath, sizeof(dpath), "%s%sdrive%d", magazine[bay].mountpoint, DIR_DELIM, drv);
-   if (access(dpath, F_OK) == 0) {
-      /* driveN file already exists */
-      return -1;
-   }
-   /* Rename volume file to driveN */
-   if (rename(vpath, dpath)) {
-      /* renaming volume file failed */
-      return -1;
-   }
-   /* Write magazine loadedN file */
-   if (WriteMagazineLoaded(magazine[bay].mountpoint, drv, lab)) {
-      /* failed to write loadedN file */
-      rename(dpath, vpath);
-      return -1;
-   }
-   return 0;
-}
-
-/*
- *  Do actual unloading of drive 'drv' at the magazine level by renaming driveN file on the
- *  magazine in bay 'bay' to the volume filename given by 'lab' and clearing loadedN file
- */
-int DiskChanger::DoUnload(int bay, int drv, VolumeLabel &lab)
-{
-   VolumeLabel vempty;
-   char dpath[PATH_MAX], vpath[PATH_MAX], vlabel[256];
-
-   if (lab.empty()) {
-      return -1; /* attempted to unload drive to unset volume slot */
-   }
-   lab.GetLabel(vlabel, sizeof(vlabel));
-   snprintf(vpath, sizeof(vpath), "%s%s%s", magazine[bay].mountpoint, DIR_DELIM, vlabel);
-   snprintf(dpath, sizeof(dpath), "%s%sdrive%d", magazine[bay].mountpoint, DIR_DELIM, drv);
-   /* Rename driveN file to volume filename */
-   if (rename(dpath, vpath)) {
-      return -1; /* failed to rename driveN file */
-   }
-   /* clear loadedN file */
-   if (WriteMagazineLoaded(magazine[bay].mountpoint, drv, vempty)) {
-      /* failed to clear loadedN file */
-      rename(vpath, dpath);
-      return -1;
-   }
-   return 0;
-}
-
-/*
- *  Create symlink 'statedir/N' pointing to mountpoint of magazine
- */
-int DiskChanger::SetDriveSymlink(int drv, const char *mountpoint)
-{
-   int rc;
-   char sname[PATH_MAX];
-   snprintf(sname, sizeof(sname), "%s%s%d", work_dir, DIR_DELIM, drv);
-   rc = symlink(mountpoint, sname);
-#ifdef HAVE_WINDOWS_H
-   if (rc) {
-      print_stderr("junct err %u, %s\n", junct_err, junct_msg);
-   }
-#endif
-   return rc;
-}
-
-/*
- *  Remove symlink 'statedir/N', where N is drive number
- */
-int DiskChanger::RemoveDriveSymlink(int drv)
-{
-   char sname[PATH_MAX];
-   snprintf(sname, sizeof(sname), "%s%s%d", work_dir, DIR_DELIM, drv);
-   return DeleteSymlink(sname);
+   if (mag < 0 || mag >= (int)magazine.size()) return "";
+   return magazine[mag].mountpoint.c_str();
 }

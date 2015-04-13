@@ -1,15 +1,13 @@
 AUTOMAKE_OPTIONS = foreign
-SUBDIRS = src
-docdir = $(datadir)/doc/$(PACKAGE)
-doc_DATA = INSTALL \
-	README \
-	AUTHORS \
-	NEWS \
-	COPYING \
+SUBDIRS = src doc scripts
+docdir = $(datadir)/doc/$(PACKAGE)-${VERSION}
+doc_DATA = AUTHORS \
 	ChangeLog \
+	COPYING \
+	INSTALL \
+	NEWS \
+	README \
+    ReleaseNotes \
 	doc/vchangerHowto.html \
-	doc/README.by-label \
-	doc/99-by-label-fix.rules \
-	doc/example.conf \
-	doc/by_label_fix.sh \
-	ReleaseNotes
+	doc/vchanger-example.conf \
+	doc/example-vchanger-udev.rules
