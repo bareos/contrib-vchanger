@@ -1,5 +1,29 @@
 vchanger ChangeLog
 
+1.0.0  (2015-04-14)
+  - Major change to magazine and work directory structure.
+     - Virtual drive symlink points to volume file directly
+     - All drive and magazine state info kept in work directory
+     - Magazines have a dynamic number of virtual slots corresponding
+       to a variable number of volume files
+     - Volume files may be moved from one magazine to another
+  - Allow an unlimited number of virtual drives
+  - Add ability to issue 'update slots' and 'label barcodes' commands
+    to Bacula to support plug-n-play of removable drives
+  - Add support for undocumented Bacula Autochanger Interface command LISTALL
+  - Added extended API command CREATEVOLS to allow creating and labelling
+    volume files with a single command.
+  - Added extended API command REFRESH to support plug-n-play of removable
+    drives
+  - Removed deprecated extended API command INITMAG
+  - Add udev support for finding devices by UUID
+  - Increased amount of logging
+  - Enable use of getfsstat() for finding mountpoint by UUID to support
+    building for BSD / OSX
+  - Allow building without UUID capability to support minimal systems having
+    neither libudev nor libblkid/libuuid.
+  - Changed Windows version requirement to Server 2008+ / Vista+
+  - Allow cross-compile of 64-bit Windows target
 0.8.6  (2010-05-13)
   - Use opendir instead of stat to trigger automounts
   - Add ability to configure logging level

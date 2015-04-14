@@ -2,7 +2,7 @@
  *
  *  This file is part of the vchanger package
  *
- *  vchanger copyright (C) 2008-2014 Josh Fisher
+ *  vchanger copyright (C) 2008-2015 Josh Fisher
  *
  *  vchanger is free software.
  *  You may redistribute it and/or modify it under the terms of the
@@ -114,8 +114,8 @@ static void print_help(void)
       "  vchanger [options] config_file LISTMAGS\n"
       "    vchanger extension to list info on all defined magazines.\n"
       "  vchanger [options] config_file CREATEVOLS mag_ndx count [start] [CREATEVOLS options]\n"
-      "    vchanger extension to create 'count' empty volume files on the magazine at"
-      "    index 'mag_ndx'. If specified, 'start' is the lowest integer to use when"
+      "    vchanger extension to create 'count' empty volume files on the magazine at\n"
+      "    index 'mag_ndx'. If specified, 'start' is the lowest integer to use when\n"
       "    appending integers to the label prefix when generating volume names.\n"
       "  vchanger [options] config_file REFRESH\n"
       "  vchanger --version\n"
