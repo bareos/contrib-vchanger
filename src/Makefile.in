@@ -220,6 +220,7 @@ SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
 STRIP = @STRIP@
 VERSION = @VERSION@
+WINLDADD = @WINLDADD@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
@@ -266,6 +267,7 @@ top_srcdir = @top_srcdir@
 AUTOMAKE_OPTIONS = foreign
 AM_CFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 AM_CXXFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
+AM_LDFLAGS = @WINLDADD@
 vchanger_SOURCES = compat/getline.c compat/gettimeofday.c \
 					compat/localtime_r.c \
 					compat/readlink.c \

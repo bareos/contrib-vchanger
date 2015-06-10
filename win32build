@@ -2,7 +2,7 @@
 #
 # Build for 32-bit and 64-bit Windows binary and create NSIS installer
 #
-VERS=1.0.0
+VERS=1.0.1
 rm -f ./win32/vchanger-$VERS.exe
 rm -f ./win32/vchanger.exe
 rm -f ./win32/vchanger64.exe

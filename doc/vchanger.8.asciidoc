@@ -3,7 +3,7 @@ VCHANGER(8)
 Josh Fisher <jfisher@jaybus.com>
 :doctype: manpage
 :man source:   vchanger
-:man version:  1.0.0
+:man version:  1.0.1
 :man manual:   vchanger Manual
 
 NAME

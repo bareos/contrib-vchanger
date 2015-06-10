@@ -22,12 +22,15 @@ UL.no_image { list-style:none; }
 
   </style>
   </head>
-  <body style="                              font-family: Arial,Helvetica,sans-serif"
+  <body style="                               font-family: Arial,Helvetica,sans-serif"
     lang="en-US">
     <p style="font-size:150%; font-weight:bold;">Vchanger Howto</p>
     <p style="font-weight:bold; margin-bottom:0;">Josh Fisher</p>
     <p>&lt;jfisher at jaybus dot com&gt;</p>
     <p style="font-weight:bold;">Revision History</p>
+    <p class="p_zero_bottom">Revision 1.0.1 2015-06-09</p>
+    <p class="p_indent">Documented changes related to version 1.0.1 of the
+      software. This is a minor bug fix release.</p>
     <p class="p_zero_bottom">Revision 1.0.0 2015-04-09</p>
     <p class="p_indent">Documented changes related to version 1.0.0 of the
       software. This major version change includes significant changes including
@@ -431,7 +434,15 @@ Device {
         Type</span>. This is because the <span style="font-style: italic; font-weight: bold;">Storage
         </span>resource in the Director configuration may only specify a single
       <span style="font-style: italic; font-weight: bold;">Media Type</span>. A
-      volume file in one <span style="font-style: italic; font-weight: bold;">Device's</span>
+      volume is given the <span style="font-style: italic; font-weight: bold;">Media
+        Type</span> of the <span style="font-style: italic; font-weight: bold;">Device
+        </span>it is written with. Since a location may have several tape drives
+      of the same type, Bacula uses the <span style="font-style: italic; font-weight: bold;">Media
+        Type</span> to determine which volumes may be loaded into which <span style="font-style: italic; font-weight: bold;">Devices</span>.
+      This, for example, allows Bacula to load a LTO-5 tape into any available
+      LTO-5 tape drive, while preventing Bacula from attempting to load the
+      LTO-5 tape into a LTO-2 drive. The same applies to the native virtual
+      autochanger. A volume file in one <span style="font-style: italic; font-weight: bold;">Device's</span>
       directory would not be found in another <span style="font-style: italic; font-weight: bold;">Device's</span>
       directory, and so with each <span style="font-style: italic; font-weight: bold;">Device
         </span>having a different <span style="font-style: italic; font-weight: bold;">Archive
@@ -888,7 +899,7 @@ Device {
       development tools installed, the Windows version can be built as follows:</p>
     <p>Unpack the gzip compressed tar archive in your home directory.</p>
     <pre>[]$ cd ~
-[]$ tar -xzf /path/to/vcahnger-1.0.0.tar.gz</pre>
+[]$ tar -xzf /path/to/vcahnger-1.0.1.tar.gz</pre>
     <p style="margin-top: 0.08in">Configure the build system and cross-compile
       vchanger</p>
     <pre>[]$ cd vchanger
@@ -1317,9 +1328,9 @@ Magazine = UUID:5039284a<span style="font-style: normal">-4312-57d1-92c4-3547100
       bacula:tape, and using two filesystems on removable USB drives as its
       magazines. The filesystems will be mounted using udev, and the automount
       scripts in the scripts directory of the vchanger source have been
-      installed to /usr/libexec/vchanger and the vchanger-genudevrules script installed
-      to /usr/bin. The udev rules needed to automount the magazine filesystems
-      can be generated and added to the udev rules with:</p>
+      installed to /usr/libexec/vchanger and the vchanger-genudevrules script
+      installed to /usr/bin. The udev rules needed to automount the magazine
+      filesystems can be generated and added to the udev rules with:</p>
     <pre>[]# vchanger-genudevrules &gt;/etc/udev/rules.d/96-vchanger.rules<br>[]# udevadm control --reload-rules </pre>
     <p>A directory is created under which udev will mount the filesystems. The
       filesystems will be mounted at subdirectories of this directory using the

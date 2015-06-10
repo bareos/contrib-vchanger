@@ -1,11 +1,11 @@
-Copyrights:
-Vchanger is Copyright (C) 2008-2009 Josh Fisher.
+COPYRIGHTS:
+Vchanger is Copyright (C) 2008-2015 Josh Fisher.
 
-License:
+LICENSE:
 Vchanger is licensed under the GNU GPL version 2, the full text
 of which is included below.
 
-IP rights:
+IP RIGHTS:
 Recipient understands that although each Contributor grants the
 licenses to its Contributions set forth herein, no assurances are
 provided by any Contributor that the Program does not infringe
@@ -20,16 +20,9 @@ third party patent license is required to allow Recipient to
 distribute the Program, it is Recipient's responsibility to
 acquire that license before distributing the Program.
 
-Windows:
-Certain source code used to build the Windows version of vchanger
-is copyrighted and or trademarked by Microsoft Corporation and may
-contain Microsoft intellectual property. Such source code is not,
-therefore, distributed with the vchanger source. You may obtain the
-parts that are not distributed by downloading them from Microsoft public
-Web servers.
 
-
-Disclaimer:
+DISCLAIMER:
+NO WARRANTY
 THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
 IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
 TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A

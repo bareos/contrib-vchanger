@@ -1,4 +1,20 @@
- Release Notes for vchanger 1.0.0                  2015-04-14
+ Release Notes for vchanger 1.0.1                  2015-06-09
+
+ Release 1.0.1
+ 
+ This is a bug fix release, fixing four issues found in version 1.0.0.
+ Additionally, the Windows installer was fixed to correctly install on
+ 64-bit Windows and create Start Menu items.
+
+Bugs Fixed:
+
+      9  Vchanger may hang when issuing commands to Bacula
+     10  uuidlookup.c compilation failure on FreeBSD 9.3
+     11  Missing libwinpthread-1.dll error in Windows version
+     12  Mounted magazines specified by UUID not always detected
+
+ ==================================================================
+ 
 
  Release 1.0.0
 

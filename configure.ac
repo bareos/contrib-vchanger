@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.63])
-AC_INIT([vchanger], [1.0.0], [jfisher@jaybus.com])
+AC_INIT([vchanger], [1.0.1], [jfisher@jaybus.com])
 AC_DEFINE([COPYRIGHT_NOTICE],["AC_PACKAGE_NAME Copyright (c) 2006-2015 Josh Fisher"],[Copyright notice])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_LIBOBJ_DIR([src/compat])
@@ -32,12 +32,6 @@ AC_TYPE_UINT64_T
 AC_TYPE_MODE_T
 AC_SYS_LARGEFILE
 
-# Add needed Windows libraries to LIBS
-# LDFLAGS="$LDFLAGS -L/usr/i686-pc-mingw32/sys-root/mingw/lib"
-#AC_SEARCH_LIBS([CloseHandle],[kernel32],)
-#AC_SEARCH_LIBS([OpenProcessToken],[advapi],)
-#AC_SEARCH_LIBS([SHGetFolderPath],[shell32],)
-
 # Use multithreading
 AC_SEARCH_LIBS([pthread_create], [pthread], [], [AC_MSG_ERROR(["could not find libpthread"])])
 # Support using libudev or libblkid for UUID lookup
@@ -57,8 +51,11 @@ AC_CHECK_HEADERS_ONCE([time.h sys/time.h sys/timespec.h sys/wait.h limits.h loca
 AC_CHECK_HEADERS_ONCE([sys/types.h strings.h alloca.h sys/bitypes.h getopt.h utime.h sys/stat.h])
 AC_CHECK_HEADERS_ONCE([inttypes.h ctype.h errno.h unistd.h varargs.h mntent.h])
 AC_CHECK_HEADERS_ONCE([sys/param.h sys/mount.h sys/ucred.h grp.h pwd.h dirent.h fcntl.h])
-AC_CHECK_HEADERS_ONCE([sys/select.h optarg.h pthread.h libgen.h io.h])
-AC_CHECK_HEADER([windows.h], [AC_DEFINE([HAVE_WINDOWS_H],,[have header windows.h])])
+AC_CHECK_HEADERS_ONCE([sys/select.h optarg.h pthread.h libgen.h io.h signal.h])
+AC_CHECK_HEADER([windows.h],
+  [AC_DEFINE([HAVE_WINDOWS_H],,[have header windows.h])
+   WINLDADD=-static])
+AC_SUBST(WINLDADD)
 AC_CHECK_HEADER([winioctl.h], [AC_DEFINE([HAVE_WINIOCTL_H],,[have header winioctl.h])], [], [#include <windows.h>])
 AC_CHECK_HEADER([winsock.h], [AC_DEFINE([HAVE_WINSOCK_H],,[have header winsock.h])], [], [#include <windows.h>])
 AC_CHECK_HEADER([winreg.h], [AC_DEFINE([HAVE_WINREG_H],,[have header winreg.h])], [], [#include <windows.h>])

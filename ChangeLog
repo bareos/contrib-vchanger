@@ -1,5 +1,21 @@
 vchanger ChangeLog
 
+1.0.1  (2015-06-09)
+  - When looking up the mountpoint of a magazine by UUID with libudev,
+    also look for mountpoint of device alias names in DEVLINKS in addition
+	to the DEVNAME.	(Fixes bug 12)
+  - The f_mntonname field in struct statfs was misspelled, causing a compile
+    error on BSD systems. (Fixes bug 10)
+  - Use static linking of libwinpthread on Windows builds to prevent missing
+    libwinpthreads-1.dll error. (Fixes bug 11)
+  - Set signal handler for SIGPIPE to SIG_IGN and do not reacquire process
+    lockfile when deleting the update lockfile. This should prevent a race
+    condition in vchanger when Bacula invokes other instances of vchanger
+    recursively when an 'update slots' or 'label barcodes' command is issued
+    via bconsole. (Fixes bug 9)
+  - Fixed nsis script error causing Windows installer to install incorrectly
+    for 64-bit Windows and fail to create Start Menu items. Also now correctly
+	removes itself from the Installed Programs list when uninstalled.
 1.0.0  (2015-04-14)
   - Major change to magazine and work directory structure.
      - Virtual drive symlink points to volume file directly

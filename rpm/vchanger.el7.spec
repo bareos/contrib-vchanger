@@ -3,7 +3,7 @@
 #
 Summary: A virtual autochanger for Bacula
 Name: vchanger
-Version: 1.0.0
+Version: 1.0.1
 Release: 1.el7
 License: GPLv2
 Group: System Environment/Daemons
@@ -85,5 +85,7 @@ if [ $1 -eq 1 ] ; then
 fi
 
 %changelog
+* Wed Jun 3 2015 Josh Fisher <jfisher@jaybus.com>
+- Updated to release 1.0.1
 * Fri Apr 3 2015 Josh Fisher <jfisher@jaybus.com>
 - Initial spec file

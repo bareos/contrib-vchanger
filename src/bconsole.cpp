@@ -55,79 +55,122 @@
 
 /*
  *  Function to issue command in Bacula console.
- *  Returns zero on success, or negative if there was an error running the command
+ *  Returns zero on success, or errno if there was an error running the command
  *  or a timeout occurred.
  */
 int issue_bconsole_command(const char *bcmd)
 {
-   int pid, rc, fno_in = -1, fno_out = -1;
+   int pid, rc, n, len, fno_in = -1, fno_out = -1;
    struct timeval tv;
    fd_set rfd;
    tString cmd, tmp;
-   char buf[16];
+   char buf[4096];
 
+#ifndef HAVE_WINDOWS_H
    /* Build command line */
    cmd = conf.bconsole;
    if (cmd.empty()) return 0;
    if (!conf.bconsole_config.empty()) {
-      cmd += " ";
+      cmd += " -c ";
       cmd += conf.bconsole_config;
    }
+   cmd += " -n -u 30";
    /* Start bconsole process */
    log.Debug("bconsole: running '%s'", bcmd);
    pid = mypopen_raw(cmd.c_str(), &fno_in, &fno_out, NULL);
    if (pid < 0) {
       rc = errno;
       log.Error("bconsole: run failed errno=%d", rc);
-      return -1;
+      errno = rc;
+      return rc;
    }
-   /* Send command to bconsole's stdin */
-   tFormat(tmp, "%s\nquit\n", bcmd);
-   if (write(fno_in, tmp.c_str(), tmp.size()) < 0) {
+   /* Wait for bconsole to accept input */
+   tv.tv_sec = 30;
+   tv.tv_usec = 0;
+   FD_ZERO(&rfd);
+   FD_SET(fno_in, &rfd);
+   rc = select(fno_in + 1, NULL, &rfd, NULL, &tv);
+   if (rc == 0) {
+      log.Error("bconsole: timed out waiting to send command");
+      close(fno_in);
+      close(fno_out);
+      errno = ETIMEDOUT;
+      return ETIMEDOUT;
+   }
+   if (rc < 0) {
       rc = errno;
-      log.Error("bconsole: send to bconsole's stdin failed errno=%d", rc);
+      log.Error("bconsole: errno=%d waiting to send command", rc);
       close(fno_in);
       close(fno_out);
       errno = rc;
-      return -1;
+      return rc;
+   }
+   /* Send command to bconsole's stdin */
+   len = strlen(bcmd);
+   n = 0;
+   while (n < len) {
+      rc = write(fno_in, bcmd + n, len - n);
+      if (rc < 0) {
+         rc = errno;
+         log.Error("bconsole: send to bconsole's stdin failed errno=%d", rc);
+         close(fno_in);
+         close(fno_out);
+         errno = rc;
+         return rc;
+      }
+      n += rc;
    }
    close(fno_in);
-
-#ifndef HAVE_WINDOWS_H
-   /* Wait for data available on bconsole's stdout */
-   FD_ZERO(&rfd);
-   FD_SET(fno_out, &rfd);
-   tv.tv_sec = 10;
-   tv.tv_usec = 0;
-   rc = select(fno_out + 1, &rfd, NULL, NULL, &tv);
-   if (rc < 0) {
-      rc = errno;
-      close(fno_out);
-      log.Error("bconsole: select() had errno %d", rc);
-      errno = rc;
-      return -1;
-   }
-   if (rc == 0) {
-      close(fno_out);
-      log.Error("bconsole: timeout waiting for bconsole output");
-      errno = ETIMEDOUT;
-      return -1;
-   }
-#endif
 
    /* Read stdout from bconsole */
    memset(buf, 0, sizeof(buf));
    tmp.clear();
-   rc = read(fno_out, buf, 1);
-   while (rc > 0) {
-      tmp += buf[0];
-      rc = read(fno_out, buf, 1);
-   }
-   log.Debug("bconsole: output:\n%s", tmp.c_str());
-   if (rc) {
-      rc = errno;
-      log.Error("bconsole: read stdout errno=%d", rc);
+   while (true) {
+      tv.tv_sec = 30;
+      tv.tv_usec = 0;
+      FD_ZERO(&rfd);
+      FD_SET(fno_out, &rfd);
+      rc = select(fno_out + 1, &rfd, NULL, NULL, &tv);
+      if (rc == 0) {
+         log.Error("bconsole: timed out waiting for bconsole output");
+         close(fno_out);
+         errno = ETIMEDOUT;
+         return ETIMEDOUT;
+      }
+      if (rc < 0) {
+         rc = errno;
+         log.Error("bconsole: errno=%d waiting for bconsole output", rc);
+         close(fno_out);
+         errno = rc;
+         return rc;
+      }
+      rc = read(fno_out, buf, 4095);
+      if (rc < 0) {
+         rc = errno;
+         log.Error("bconsole: errno=%d reading bconsole stdout", rc);
+         close(fno_out);
+         errno = rc;
+         return rc;
+      } else if (rc > 0) {
+         buf[rc] = 0;
+         tmp += buf;
+      } else break;
    }
    close(fno_out);
+   log.Debug("bconsole: output:\n%s", tmp.c_str());
+
+   /* Wait for bconsole process to finish */
+   pid = waitpid(pid, &rc, 0);
+   if (!WIFEXITED(rc)) {
+      log.Error("bconsole: abnormal exit of bconsole process");
+      return EPIPE;
+   }
+   if (WEXITSTATUS(rc)) {
+      log.Error("bconsole: exited with rc=%d", WEXITSTATUS(rc));
+      return WEXITSTATUS(rc);
+   }
    return 0;
+#else
+   return EINVAL;
+#endif
 }

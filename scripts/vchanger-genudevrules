@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#  vchanger-genudevrules ( vchanger v.1.0.0 ) 2015-04-03
+#  vchanger-genudevrules ( vchanger v.1.0.1 ) 2015-06-03
 #
 #  Search all autochanger configuration files for magazines being defined
 #  by filesystem UUID and print to stdout the udev rules for launching

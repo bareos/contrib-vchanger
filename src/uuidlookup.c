@@ -215,7 +215,7 @@ static int GetDevMountpoint(char *mountp, size_t mountp_sz, const char *devname)
    for (n = 0; n < mcount; n++)
    {
       if (strcasecmp(devname, fs[n].f_mntfromname) == 0) {
-         strncpy(mountp, fs[n].f_mnttoname, mountp_sz);
+         strncpy(mountp, fs[n].f_mntonname, mountp_sz);
          rc = 0;
       }
    }
@@ -257,6 +257,8 @@ int GetMountpointFromUUID(char *mountp, size_t mountp_sz, const char *uuid_str)
    struct udev_device *dev;
    int rc = -3;
    const char *dev_name, *path, *uuid;
+   size_t n, pos, dev_name_len;
+   char devlink[4096];
 
    if (!mountp || !mountp_sz) return -2;
    if (!uuid_str || !strlen(uuid_str)) return -2;
@@ -282,6 +284,26 @@ int GetMountpointFromUUID(char *mountp, size_t mountp_sz, const char *uuid_str)
          }
          /* Lookup mountpoint of the kernel device node */
          rc = GetDevMountpoint(mountp, mountp_sz, dev_name);
+         if (rc == 0) break;
+         /* If not mounted as the DEVNAME, also check if mounted as
+          * a device alias name from DEVLINKS */
+         dev_name = udev_device_get_property_value(dev, "DEVLINKS");
+         if (dev_name == NULL) {
+            /* Failed to get device alias links */
+            break;
+         }
+         dev_name_len = strlen(dev_name);
+         pos = 0;
+         while (rc == -4 && pos < dev_name_len) {
+            for (n = pos; n < dev_name_len && !isblank(dev_name[n]); n++) ;
+            n -= pos;
+            memmove(devlink, dev_name + pos, n);
+            devlink[n] = 0;
+            rc = GetDevMountpoint(mountp, mountp_sz, devlink);
+            pos += n;
+            while (pos < dev_name_len && isblank(dev_name[pos])) ++pos;
+         }
+         break;
       }
    }
    udev_enumerate_unref(enumerate);

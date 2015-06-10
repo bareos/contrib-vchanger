@@ -46,6 +46,9 @@
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 
 #include "util.h"
 #include "compat_defs.h"
@@ -576,6 +579,10 @@ int main(int argc, char *argv[])
    if (!conf.Validate()) {
       return 1;
    }
+#ifndef HAVE_WINDOWS_H
+   /* Ignore SIGPIPE signals */
+   signal(SIGPIPE, SIG_IGN);
+#endif
    /* Initialize changer. A lock file is created to serialize access
     * to the changer. As a result, changer initialization may block
     * for up to 30 seconds, and may fail if a timeout is reached */
@@ -624,12 +631,10 @@ int main(int argc, char *argv[])
       log.Info("  SUCCESS pid=%d", getpid());
       break;
    }
+   changer.Unlock();
 
    /* If there was an error, then exit */
-   if (error_code) {
-      changer.Unlock();
-      return error_code;
-   }
+   if (error_code) return error_code;
 
    /* If not updating Bacula, then exit */
    if (conf.bconsole.empty()) {
@@ -638,7 +643,6 @@ int main(int argc, char *argv[])
          log.Error("WARNING! 'update slots' needed in bconsole pid=%d", getpid());
       if (changer.NeedsLabel())
          log.Error("WARNING! 'label barcodes' needed in bconsole pid=%d", getpid());
-      changer.Unlock();
       return 0;
    }
 
@@ -651,9 +655,7 @@ int main(int argc, char *argv[])
       log.Error("WARNING! 'update slots' needed in bconsole");
    if (changer.NeedsLabel())
       log.Error("WARNING! 'label barcodes' needed in bconsole");
-   return 0;
 #endif
 
-   changer.Unlock();
    return 0;
 }

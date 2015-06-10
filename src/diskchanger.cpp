@@ -770,6 +770,7 @@ int DiskChanger::UpdateBacula()
    }
    if (rc) {
       /* error creating lockfile, so skip */
+      log.Error("bconsole: errno=%d creating update lockfile", rc);
       if (needs_update)
          log.Error("WARNING! 'update slots' needed in bconsole");
       if (needs_label)
@@ -777,33 +778,23 @@ int DiskChanger::UpdateBacula()
       return 0;
    }
    log.Debug("created update lockfile for pid %d", getpid());
-   /* Remove lock so another vchanger instance invoked due to the update slots or
-    * label barcodes command doens't block */
-   Unlock();
    /* Perform update slots command in bconsole */
    if (needs_update) {
       /* Issue update slots command in bconsole */
-      tFormat(cmd, "update slots storage=\"%s\" drive=0", conf.storage_name.c_str());
+      tFormat(cmd, "update slots storage=\"%s\"", conf.storage_name.c_str());
       if(issue_bconsole_command(cmd.c_str())) {
          log.Error("WARNING! 'update slots' needed in bconsole");
       }
    }
    /* Perform label barcodes command in bconsole */
    if (needs_label) {
-      tFormat(cmd, "label storage=\"%s\" pool=\"%s\" barcodes\ny\nyes\n", conf.storage_name.c_str(),
+      tFormat(cmd, "label storage=\"%s\" pool=\"%s\" barcodes\nyes\nyes\n", conf.storage_name.c_str(),
             conf.def_pool.c_str());
       if (issue_bconsole_command(cmd.c_str())) {
          log.Error("WARNING! 'label barcodes' needed in bconsole");
       }
    }
    /* Obtain changer lock before removing update lock */
-   if (Lock()) {
-      log.Error("timeout obtaining lock for pid=%d", getpid());
-      fclose(update_lock);
-      unlink(lockfile);
-      log.Error("force removal of update lockfile for pid %d", getpid());
-      return 0;
-   }
    fclose(update_lock);
    unlink(lockfile);
    log.Debug("removed update lockfile for pid %d", getpid());

@@ -102,6 +102,9 @@
 /* have header shlobj.h */
 #undef HAVE_SHLOBJ_H
 
+/* Define to 1 if you have the <signal.h> header file. */
+#undef HAVE_SIGNAL_H
+
 /* Define to 1 if you have the `sleep' function. */
 #undef HAVE_SLEEP
 

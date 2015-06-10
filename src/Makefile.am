@@ -1,6 +1,7 @@
 AUTOMAKE_OPTIONS = foreign
 AM_CFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
 AM_CXXFLAGS = -DLOCALSTATEDIR='"${localstatedir}"'
+AM_LDFLAGS = @WINLDADD@
 bin_PROGRAMS = vchanger
 vchanger_SOURCES = compat/getline.c compat/gettimeofday.c \
 					compat/localtime_r.c \
