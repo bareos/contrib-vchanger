@@ -49,7 +49,7 @@ public:
    const char* GetMagazineMountpoint(int mag) const;
    inline int NumDrives() { return (int)drive.size(); }
    inline int NumMagazines() { return (int)magazine.size(); }
-   inline int NumSlots() { return (int)vslot.size() - 1; }
+   inline int NumSlots() { return (int)vslot.size() - 2; }
    inline int GetError() { return verr.GetError(); }
    inline const char* GetErrorMsg() const { return verr.GetErrorMsg(); }
    inline bool NeedsUpdate() const { return needs_update; }
