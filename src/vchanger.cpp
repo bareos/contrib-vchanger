@@ -60,18 +60,32 @@ DiskChanger changer;
 /*-------------------------------------------------
  *  Commands
  * ------------------------------------------------*/
-#define NUM_AUTOCHANGER_COMMANDS 9
-static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][32] = { "list", "slots", "load",
-      "unload", "loaded", "listall", "listmags", "createvols", "refresh" };
+#define NUM_AUTOCHANGER_COMMANDS 10
+#define MAX_AUTOCHANGER_CMD_LEN 16
+
+static char autochanger_command[NUM_AUTOCHANGER_COMMANDS][MAX_AUTOCHANGER_CMD_LEN] = {
+   "list",
+   "slots",
+   "load",
+   "unload",
+   "loaded",
+   "listall",
+   "transfer",
+   "listmags",
+   "createvols",
+   "refresh"
+};
+
 #define CMD_LIST        0
 #define CMD_SLOTS       1
 #define CMD_LOAD        2
 #define CMD_UNLOAD      3
 #define CMD_LOADED      4
 #define CMD_LISTALL     5
-#define CMD_LISTMAGS    6
-#define CMD_CREATEVOLS  7
-#define CMD_REFRESH     8
+#define CMD_TRANSFER    6
+#define CMD_LISTMAGS    7
+#define CMD_CREATEVOLS  8
+#define CMD_REFRESH     9
 
 /*-------------------------------------------------
  *  Command line parameters
@@ -82,6 +96,7 @@ typedef struct _cmdparams_s
    bool print_help;
    int command;
    int slot;
+   int dest_slot;
    int drive;
    int mag_bay;
    int count;
@@ -152,18 +167,21 @@ static int parse_cmdline(int argc, char *argv[])
 {
    int c, ndx = 0;
    tString tmp;
-   struct option options[] = { { "version", 0, 0, LONGONLYOPT_VERSION },
-         { "help", 0, 0, LONGONLYOPT_HELP },
-         { "user", 1, 0, 'u' },
-         { "group", 1, 0, 'g' },
-         { "label", 1, 0, 'l' },
-         { "pool", 1, 0, LONGONLYOPT_POOL },
-         { 0, 0, 0, 0 } };
+   struct option options[] = {
+      { "version", 0, 0, LONGONLYOPT_VERSION },
+      { "help", 0, 0, LONGONLYOPT_HELP },
+      { "user", 1, 0, 'u' },
+      { "group", 1, 0, 'g' },
+      { "label", 1, 0, 'l' },
+      { "pool", 1, 0, LONGONLYOPT_POOL },
+      { 0, 0, 0, 0 }
+   };
 
    cmdl.print_version = false;
    cmdl.print_help = false;
    cmdl.command = 0;
    cmdl.slot = 0;
+   cmdl.dest_slot = 0;
    cmdl.drive = 0;
    cmdl.mag_bay = 0;
    cmdl.count = 0;
@@ -294,6 +312,9 @@ static int parse_cmdline(int argc, char *argv[])
       case CMD_CREATEVOLS:
          fprintf(stderr, "missing parameter 4 (count)\n");
          break;
+      case CMD_TRANSFER:
+         fprintf(stderr, "missing parameter 4 (dest_slot)\n");
+         break;
       default:
          fprintf(stderr, "missing parameter 4 (archive device)\n");
          break;
@@ -310,6 +331,13 @@ static int parse_cmdline(int argc, char *argv[])
          return -1;
       }
       break;
+   case CMD_TRANSFER:
+      cmdl.dest_slot = (int)strtol(argv[ndx], NULL, 10);
+      if (cmdl.dest_slot < 1) {
+         fprintf(stderr, "invalid slot number in parameter 4\n");
+         return -1;
+      }
+      return 0; /* OK, because parameter 5 not needed */
    default:
       /* Param 4 for all other commands is the archive device path */
       cmdl.archive_device = argv[ndx];
@@ -352,7 +380,6 @@ static int parse_cmdline(int argc, char *argv[])
    return 0;
 }
 
-
 /*-------------------------------------------------
  *   LIST Command
  * Prints a line on stdout for each autochanger slot that contains a
@@ -382,7 +409,6 @@ static int do_list_cmd()
    return 0;
 }
 
-
 /*-------------------------------------------------
  *   SLOTS Command
  * Prints the number of virtual slots the changer has
@@ -393,7 +419,6 @@ static int do_slots_cmd()
    log.Info("  SUCCESS reporting %d slots", changer.NumSlots());
    return 0;
 }
-
 
 /*-------------------------------------------------
  *   LOAD Command
@@ -410,7 +435,6 @@ static int do_load_cmd()
    return 0;
 }
 
-
 /*-------------------------------------------------
  *   UNLOAD Command
  * Unloads the volume in a virtual drive
@@ -425,7 +449,6 @@ static int do_unload_cmd()
    log.Info("  SUCCESS unloading slot %d from drive %d", cmdl.slot, cmdl.drive);
    return 0;
 }
-
 
 /*-------------------------------------------------
  *   LOADED Command
@@ -445,6 +468,22 @@ static int do_loaded_cmd()
  *   LISTALL Command
  * Prints state of drives (loaded or empty), followed by state
  * of virtual slots (full or empty).
+ *
+ * # Drive content: D:Drive num:F:Slot loaded:Volume Name
+ * # D:0:F:2:vol2 or D:Drive num:E
+ * # D:1:F:42:vol42
+ * # D:3:E
+ * #
+ * # Slot content:
+ * # S:1:F:vol1 S:Slot num:F:Volume Name
+ * # S:2:E or S:Slot num:E
+ * # S:3:F:vol4
+ * #
+ * # Import/Export tray slots:
+ * # I:10:F:vol10 I:Slot num:F:Volume Name
+ * # I:11:E or I:Slot num:E
+ * # I:12:F:vol40
+ *
  *------------------------------------------------*/
 static int do_list_all()
 {
@@ -475,6 +514,16 @@ static int do_list_all()
    return 0;
 }
 
+/*-------------------------------------------------
+ *   Transfer Command
+ * Transfer is not supported by vchanger.
+ *------------------------------------------------*/
+static int do_transfer_cmd()
+{
+   fprintf(stderr, "transfer not supported\n");
+   log.Error("  ERROR");
+   return -1;
+}
 
 /*-------------------------------------------------
  *   LISTMAGS (List Magazines) Command
@@ -519,8 +568,6 @@ static int do_create_vols()
    log.Info("  SUCCESS");
    return 0;
 }
-
-
 
 /* -------------  Main  -------------------------*/
 
@@ -616,6 +663,10 @@ int main(int argc, char *argv[])
    case CMD_LISTALL:
       log.Debug("==== preforming LISTALL command pid=%d", getpid());
       error_code = do_list_all();
+      break;
+   case CMD_TRANSFER:
+      log.Debug("==== preforming TRANSFER command pid=%d", getpid());
+      error_code = do_transfer_cmd();
       break;
    case CMD_LISTMAGS:
       log.Debug("==== preforming LISTMAGS command pid=%d", getpid());
